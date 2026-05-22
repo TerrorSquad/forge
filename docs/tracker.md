@@ -24,11 +24,11 @@ Track implementation progress for all booster features.
 
 | # | Feature | Status | Priority | Notes |
 |---|---------|--------|----------|-------|
-| [010](specs/feature-010-backend-execution-routing.md) | Backend Execution Routing | 🔲 Not Started | P1 | DDEV auto-detect, per-tool backend override |
-| [011](specs/feature-011-monorepo-workspace-mode.md) | Monorepo and Workspace Mode | 🔲 Not Started | P1 | `--workspace`, member discovery by staged path |
-| [012](specs/feature-012-config-migration.md) | Config Migration Tool | 🔲 Not Started | P1 | `booster migrate` from `.git-hooks.config.json` → `booster.toml` |
-| [013](specs/feature-013-presets-and-init.md) | Presets and `booster init` Improvements | 🔲 Not Started | P2 | Built-in presets: `node`, `php`, `php-node`, `go`, `minimal` |
-| [014](specs/feature-014-release-distribution.md) | Release and Distribution | 🔲 Not Started | P1 | GoReleaser, Homebrew tap, curl installer |
+| [010](specs/feature-010-backend-execution-routing.md) | Backend Execution Routing | ✅ Done | P1 | `HostBackend`/`DdevBackend` interfaces, DDEV auto-detect via `ddev status`, per-tool `backend` field, global `[execution] default_backend` |
+| [011](specs/feature-011-monorepo-workspace-mode.md) | Monorepo and Workspace Mode | ✅ Done | P1 | `[workspace] members = [...]`, glob expansion, staged-path matching, per-member config fallback |
+| [012](specs/feature-012-config-migration.md) | Config Migration Tool | ✅ Done | P1 | `booster migrate [--from FILE] [--to FILE]` reads `.git-hooks.config.json`, emits booster.toml TOML |
+| [013](specs/feature-013-presets-and-init.md) | Presets and `booster init` Improvements | ✅ Done | P2 | `--preset` flag + `--list-presets`; built-in presets: `node`, `php`, `php-node`, `go`, `minimal` |
+| [014](specs/feature-014-release-distribution.md) | Release and Distribution | ✅ Done | P1 | `.goreleaser.yaml` (multi-platform), CI workflow, release workflow, `install.sh`, `booster version` |
 
 ---
 
@@ -37,8 +37,8 @@ Track implementation progress for all booster features.
 | Milestone | Features | Done | Progress |
 |-----------|----------|------|----------|
 | v1 core   | 001–009  | 9/9  | ✅ Complete |
-| v1.x      | 010–014  | 0/5  | 🔲 Not started |
-| **Total** | **14**   | **9**| **64%** |
+| v1.x      | 010–014  | 5/5  | ✅ Complete |
+| **Total** | **14**   | **14**| **100%** |
 
 ---
 
