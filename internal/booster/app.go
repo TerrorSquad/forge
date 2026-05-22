@@ -54,7 +54,14 @@ func Run(args []string) int {
 		}
 		return 0
 	case "doctor":
-		if err := Doctor(); err != nil {
+		dfs := flag.NewFlagSet("doctor", flag.ContinueOnError)
+		fix := dfs.Bool("fix", false, "automatically fix detected issues")
+		dryRun := dfs.Bool("dry-run", false, "print what would be fixed without applying")
+		if err := dfs.Parse(args[1:]); err != nil {
+			return 2
+		}
+		opts := DoctorOptions{Fix: *fix, DryRun: *dryRun}
+		if err := DoctorWithOptions(opts); err != nil {
 			fmt.Fprintf(os.Stderr, "doctor failed: %v\n", err)
 			return 1
 		}
