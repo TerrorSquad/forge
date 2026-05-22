@@ -36,6 +36,9 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 		return err
 	}
 
+	// Load project-level env overrides before any SKIP_* checks.
+	loadEnvFiles(repoRoot)
+
 	if opts.AllFiles && hookName != "pre-commit" {
 		return fmt.Errorf("--all-files is only valid for the pre-commit hook, not %q", hookName)
 	}
@@ -49,13 +52,14 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(UI, "%s\n", dim("config: "+configPath))
 
 	hookCfg, ok := cfg.Hooks[hookName]
 	if !ok || !hookCfg.IsEnabled() {
-		fmt.Fprintf(UI, "%s\n", dim(hookName+" disabled or not configured"))
+		// Silently exit — no config = nothing to do.
 		return ErrHookSkipped
 	}
+
+	fmt.Fprintf(UI, "%s\n", dim("config: "+configPath))
 
 	// Workspace mode: run hook for each affected member
 	if len(cfg.Workspace.Members) > 0 && hookName != "commit-msg" {
@@ -90,17 +94,14 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 	}
 
 	if hookName == "post-commit" {
-		fmt.Fprintf(UI, "%s\n", dim("post-commit: informational — commit already saved"))
 		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, false, opts.NoCache, opts.CheckMode)
 	}
 
 	if hookName == "post-merge" {
-		fmt.Fprintf(UI, "%s\n", dim("post-merge: informational — merge already complete"))
 		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, false, opts.NoCache, opts.CheckMode)
 	}
 
 	if hookName == "post-rewrite" {
-		fmt.Fprintf(UI, "%s\n", dim("post-rewrite: informational — rewrite already complete (source: "+editFile+")"))
 		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, false, opts.NoCache, opts.CheckMode)
 	}
 
@@ -545,6 +546,39 @@ func splitComma(data []byte, atEOF bool) (advance int, token []byte, err error) 
 func isHookSkippedEnv(hook string) bool {
 	key := "SKIP_" + strings.ToUpper(strings.ReplaceAll(hook, "-", ""))
 	return isTruthy(os.Getenv(key))
+}
+
+// loadEnvFiles reads KEY=VALUE pairs from .git-hooks.env and .env (in that
+// order of precedence) and sets them in the process environment. Variables
+// that are already set in the environment are not overwritten — explicit
+// shell exports always win.
+func loadEnvFiles(repoRoot string) {
+	for _, name := range []string{".git-hooks.env", ".env"} {
+		path := filepath.Join(repoRoot, name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			k, v, ok := strings.Cut(line, "=")
+			if !ok {
+				continue
+			}
+			k = strings.TrimSpace(k)
+			v = strings.TrimSpace(v)
+			// Strip surrounding quotes (single or double).
+			if len(v) >= 2 && ((v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'')) {
+				v = v[1 : len(v)-1]
+			}
+			if os.Getenv(k) == "" {
+				_ = os.Setenv(k, v)
+			}
+		}
+	}
 }
 
 func shouldSkipTool(name string) bool {
