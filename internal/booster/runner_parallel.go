@@ -194,7 +194,7 @@ func runToolWave(root string, names []string, tools map[string]ToolConfig, files
 
 			// Skip tool if its binary is not available.
 			resolvedCmd := resolveCommandForBackend(root, tool, backend)
-			if !toolBinaryAvailable(root, resolvedCmd) {
+			if !toolBinaryAvailable(root, resolvedCmd, backend) {
 				pr.result = ToolResult{Name: toolName, Status: "skip"}
 				results[idx] = pr
 				return

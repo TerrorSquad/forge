@@ -94,7 +94,7 @@ func runHookCfgTUI(root, hookName string, hookCfg HookConfig, exec ExecutionConf
 
 			// Skip tool if its binary is not available.
 			resolvedCmd := resolveCommandForBackend(root, tool, backend)
-			if !toolBinaryAvailable(root, resolvedCmd) {
+			if !toolBinaryAvailable(root, resolvedCmd, backend) {
 				r := ToolResult{Name: name, Status: "skip"}
 				disp.doneTool(r)
 				allResults = append(allResults, r)
@@ -215,7 +215,7 @@ func runTUIWave(root string, names []string, tools map[string]ToolConfig, files 
 
 			// Skip tool if its binary is not available.
 			resolvedCmd := resolveCommandForBackend(root, tool, backend)
-			if !toolBinaryAvailable(root, resolvedCmd) {
+			if !toolBinaryAvailable(root, resolvedCmd, backend) {
 				pr.result = ToolResult{Name: toolName, Status: "skip"}
 				disp.doneTool(pr.result)
 				results[idx] = pr

@@ -181,11 +181,17 @@ func (e *BackendAvailabilityError) Error() string {
 }
 
 // toolBinaryAvailable reports whether the resolved command path is accessible.
+// For DdevBackend, the check is always skipped — the container is assumed to
+// have every tool it is configured to run.
 // resolvedCmd may be:
 //   - a relative vendor/bin or node_modules/.bin path (checked relative to repoRoot)
 //   - a plain binary name (checked on system PATH)
 //   - an absolute path
-func toolBinaryAvailable(repoRoot, resolvedCmd string) bool {
+func toolBinaryAvailable(repoRoot, resolvedCmd string, backend Backend) bool {
+	// DDEV container is authoritative — don't try to resolve host paths.
+	if _, isDdev := backend.(*DdevBackend); isDdev {
+		return true
+	}
 	if filepath.IsAbs(resolvedCmd) {
 		_, err := os.Stat(resolvedCmd)
 		return err == nil
