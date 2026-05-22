@@ -49,6 +49,8 @@ func Run(args []string) int {
 		return 0
 	case "run":
 		return runCommand(args[1:])
+	case "migrate":
+		return migrateCommand(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", args[0])
 		printHelp()
@@ -87,6 +89,20 @@ func runCommand(args []string) int {
 	return 0
 }
 
+func migrateCommand(args []string) int {
+	fs := flag.NewFlagSet("migrate", flag.ContinueOnError)
+	from := fs.String("from", "", "path to .git-hooks.config.json (auto-detected if omitted)")
+	to := fs.String("to", "-", "output path for booster.toml (- prints to stdout)")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if err := MigrateConfig(*from, *to); err != nil {
+		fmt.Fprintf(os.Stderr, "migrate failed: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
 func printHelp() {
 	fmt.Println(`booster - policy-driven git hook runner
 
@@ -95,11 +111,13 @@ Usage:
   booster install
   booster uninstall
   booster run <hook> [--edit FILE]
+  booster migrate [--from FILE] [--to FILE]
   booster doctor
 
 Examples:
   booster init
   booster install
   booster run pre-commit
-  booster run commit-msg --edit .git/COMMIT_EDITMSG`)
+  booster run commit-msg --edit .git/COMMIT_EDITMSG
+  booster migrate --from .git-hooks.config.json --to booster.toml`)
 }
