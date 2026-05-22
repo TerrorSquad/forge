@@ -315,6 +315,30 @@ func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, edit
 		return fmt.Errorf("commit-msg policy requires message file (pass --edit or let git pass the file path)")
 	}
 
+	// Resolve current branch (best-effort — empty string if not in a git repo).
+	branch, _ := currentBranch(repoRoot)
+
+	// Skipped branches bypass ALL validation (no conventional commits, no footer).
+	for _, skip := range policy.SkippedBranches {
+		if branch == skip {
+			return nil
+		}
+	}
+
+	// Branch name validation (optional). Requires a resolvable branch.
+	if policy.ValidateBranchName && policy.BranchPattern != "" {
+		if branch == "" {
+			return fmt.Errorf("cannot determine current branch for branch_pattern validation")
+		}
+		branchRe, err := regexp.Compile(policy.BranchPattern)
+		if err != nil {
+			return fmt.Errorf("invalid branch_pattern %q: %w", policy.BranchPattern, err)
+		}
+		if !branchRe.MatchString(branch) {
+			return fmt.Errorf("branch name %q does not match required pattern %q", branch, policy.BranchPattern)
+		}
+	}
+
 	content, err := os.ReadFile(editFile)
 	if err != nil {
 		return err
@@ -333,11 +357,6 @@ func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, edit
 		return nil
 	}
 
-	branch, err := currentBranch(repoRoot)
-	if err != nil {
-		return err
-	}
-
 	ticket := ""
 	if m := ticketRegex.FindStringSubmatch(branch); len(m) > 1 {
 		ticket = m[1]
@@ -348,7 +367,11 @@ func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, edit
 	}
 
 	if policy.AppendTicketFooter && ticket != "" {
-		footer := fmt.Sprintf("Closes: %s", ticket)
+		label := policy.FooterLabel
+		if label == "" {
+			label = "Closes"
+		}
+		footer := fmt.Sprintf("%s: %s", label, ticket)
 		if !containsLine(lines, footer) {
 			text := strings.TrimRight(string(content), "\n") + "\n\n" + footer + "\n"
 			if err := os.WriteFile(editFile, []byte(text), 0644); err != nil {

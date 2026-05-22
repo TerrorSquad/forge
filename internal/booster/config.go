@@ -182,10 +182,13 @@ type HookConfig struct {
 }
 
 type CommitMessagePolicy struct {
-	ConventionalCommits bool   `toml:"conventional_commits"`
-	AppendTicketFooter  bool   `toml:"append_ticket_footer"`
-	RequireTicket       bool   `toml:"require_ticket"`
-	BranchPattern       string `toml:"branch_pattern"`
+	ConventionalCommits bool     `toml:"conventional_commits"`
+	AppendTicketFooter  bool     `toml:"append_ticket_footer"`
+	RequireTicket       bool     `toml:"require_ticket"`
+	BranchPattern       string   `toml:"branch_pattern"`
+	ValidateBranchName  bool     `toml:"validate_branch_name"`
+	SkippedBranches     []string `toml:"skipped_branches"`
+	FooterLabel         string   `toml:"footer_label"`
 	// prepare-commit-msg specific
 	PrependTicket bool `toml:"prepend_ticket"`
 	SkipOnMerge   bool `toml:"skip_on_merge"`

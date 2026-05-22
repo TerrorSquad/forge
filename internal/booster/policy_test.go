@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -138,6 +139,92 @@ func TestApplyCommitMessagePolicy_ScopeAndBreaking(t *testing.T) {
 	}
 }
 
+func TestApplyCommitMessagePolicy_SkippedBranch(t *testing.T) {
+	skipped := []string{"main", "master", "development", "develop", "develop/test"}
+	for _, branch := range skipped {
+		t.Run(branch, func(t *testing.T) {
+			dir := initBareGitRepo(t)
+			// initBareGitRepo already starts on the default branch (master/main).
+			// Only create the branch if it doesn't already exist.
+			createBranchInRepoIfNotExists(t, dir, branch)
+
+			msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+			// Non-conventional message — would normally fail conventional_commits check
+			writeFile(t, msgFile, "WIP: direct commit to protected branch\n")
+
+			policy := &CommitMessagePolicy{
+				ConventionalCommits: true,
+				AppendTicketFooter:  true,
+				SkippedBranches:     skipped,
+			}
+			if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
+				t.Errorf("branch %q is in skipped list, all validation should be bypassed, got: %v", branch, err)
+			}
+
+			// Footer must NOT have been appended
+			data, _ := os.ReadFile(msgFile)
+			if contains(string(data), "Closes:") {
+				t.Errorf("footer must not be appended on skipped branch %q", branch)
+			}
+		})
+	}
+}
+
+func TestApplyCommitMessagePolicy_BranchNameValidation_Pass(t *testing.T) {
+	dir := initBareGitRepo(t)
+	createBranchInRepo(t, dir, "story/PRJ-1234-my-feature")
+
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "feat: valid message\n")
+
+	policy := &CommitMessagePolicy{
+		ConventionalCommits: true,
+		ValidateBranchName:  true,
+		BranchPattern:       `^(feature|fix|chore|story|task|bug|sub-task)/((?:PRJ|ERM)-[0-9]+-[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*|[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*)$`,
+	}
+	if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
+		t.Errorf("valid branch should pass validation, got: %v", err)
+	}
+}
+
+func TestApplyCommitMessagePolicy_BranchNameValidation_Fail(t *testing.T) {
+	dir := initBareGitRepo(t)
+	createBranchInRepo(t, dir, "INVALID_BRANCH_NAME")
+
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "feat: valid message\n")
+
+	policy := &CommitMessagePolicy{
+		ConventionalCommits: true,
+		ValidateBranchName:  true,
+		BranchPattern:       `^(feature|fix|chore|story|task|bug|sub-task)/((?:PRJ|ERM)-[0-9]+-[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*|[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*)$`,
+	}
+	if err := applyCommitMessagePolicy(dir, policy, msgFile); err == nil {
+		t.Error("invalid branch name should fail validation")
+	}
+}
+
+func TestApplyCommitMessagePolicy_FooterLabel(t *testing.T) {
+	dir := initBareGitRepo(t)
+	createBranchInRepo(t, dir, "feat/PRJ-777-something")
+
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "feat: custom label test\n")
+
+	policy := &CommitMessagePolicy{
+		AppendTicketFooter: true,
+		FooterLabel:        "Fixes",
+	}
+	if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, _ := os.ReadFile(msgFile)
+	if !contains(string(data), "Fixes: PRJ-777") {
+		t.Errorf("expected custom label 'Fixes: PRJ-777', got:\n%s", string(data))
+	}
+}
+
 // helpers
 
 func initBareGitRepo(t *testing.T) string {
@@ -155,6 +242,18 @@ func initBareGitRepo(t *testing.T) string {
 
 func createBranchInRepo(t *testing.T, dir, branch string) {
 	t.Helper()
+	runCmd(t, dir, "git", "checkout", "-b", branch)
+}
+
+func createBranchInRepoIfNotExists(t *testing.T, dir, branch string) {
+	t.Helper()
+	// Check current branch first; if it already matches, nothing to do.
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err == nil && strings.TrimSpace(string(out)) == branch {
+		return
+	}
 	runCmd(t, dir, "git", "checkout", "-b", branch)
 }
 
