@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 )
 
 func Run(args []string) int {
@@ -81,6 +82,10 @@ func Run(args []string) int {
 		return 0
 	case "cache":
 		return cacheCommand(args[1:])
+	case "list":
+		return listCommand()
+	case "ci":
+		return ciCommand()
 	case "run":
 		return runCommand(args[1:])
 	case "migrate":
@@ -152,20 +157,24 @@ Usage:
   booster init [--force] [--preset PRESET] [--list-presets]
   booster install
   booster uninstall
-  booster run <hook> [--edit FILE]
+  booster run <hook> [--edit FILE] [--all-files] [--check] [--no-cache]
+  booster list
+  booster ci
   booster migrate [--from FILE] [--to FILE]
-  booster doctor
+  booster doctor [--fix] [--dry-run]
+  booster cache clear
+  booster completion <bash|zsh|fish>
 
 Presets:
   node, php, php-node, go, minimal
 
 Examples:
   booster init --preset go
-  booster init --list-presets
   booster install
   booster run pre-commit
-  booster run commit-msg --edit .git/COMMIT_EDITMSG
-  booster migrate --from .git-hooks.config.json --to booster.toml
+  booster run pre-commit --check --all-files
+  booster list
+  booster ci
   booster cache clear`)
 }
 
@@ -184,5 +193,79 @@ func cacheCommand(args []string) int {
 		return 1
 	}
 	fmt.Println("cache cleared")
+	return 0
+}
+
+// listCommand prints all configured hooks and their tools.
+func listCommand() int {
+	repoRoot, err := detectRepoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "list failed: %v\n", err)
+		return 1
+	}
+	cfg, configPath, err := LoadConfig(repoRoot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "list failed: %v\n", err)
+		return 1
+	}
+	fmt.Fprintf(UI, "%s\n\n", dim("config: "+configPath))
+
+	if len(cfg.Hooks) == 0 {
+		fmt.Fprintf(UI, "%s\n", dim("no hooks configured"))
+		return 0
+	}
+
+	hookNames := make([]string, 0, len(cfg.Hooks))
+	for name := range cfg.Hooks {
+		hookNames = append(hookNames, name)
+	}
+	sort.Strings(hookNames)
+
+	for _, hookName := range hookNames {
+		hookCfg := cfg.Hooks[hookName]
+		enabled := hookCfg.IsEnabled()
+		statusIcon := green("✓")
+		if !enabled {
+			statusIcon = dim("·")
+		}
+		parallel := ""
+		if isParallelMode(hookCfg, cfg.Execution) {
+			parallel = dim(" [parallel]")
+		}
+		fmt.Fprintf(UI, "%s %s%s\n", statusIcon, bold(hookName), parallel)
+
+		toolNames := sortedToolNames(hookCfg.Tools)
+		for _, toolName := range toolNames {
+			tool := hookCfg.Tools[toolName]
+			backend := ""
+			if tool.Backend != "" {
+				backend = dim(" [" + tool.Backend + "]")
+			}
+			group := ""
+			if tool.Group != "" {
+				group = dim(" group:" + tool.Group)
+			}
+			fmt.Fprintf(UI, "    %s  %s%s%s\n", cyan("→"), toolName, backend, group)
+			fmt.Fprintf(UI, "       %s\n", dim(tool.Command))
+		}
+		fmt.Fprintln(UI)
+	}
+	return 0
+}
+
+// ciCommand is an opinionated shortcut for CI pipelines:
+// runs pre-commit in check + all-files + no-cache mode.
+func ciCommand() int {
+	if err := RunHookWithOptions("pre-commit", "", RunOptions{
+		AllFiles:  true,
+		CheckMode: true,
+		NoCache:   true,
+	}); err != nil {
+		if errors.Is(err, ErrHookSkipped) {
+			return 0
+		}
+		fmt.Fprintf(os.Stderr, "ci check failed: %v\n", err)
+		return 1
+	}
 	return 0
 }
