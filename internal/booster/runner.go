@@ -229,10 +229,15 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 			r := ToolResult{Name: name, Status: status, Duration: dur, Output: toolOut}
 			PrintToolResult(r)
 			results = append(results, r)
-			failed = true
-			if !checkMode && strings.EqualFold(strings.TrimSpace(tool.OnFailure), "stop") {
-				PrintSummary(results, time.Since(hookStart))
-				return fmt.Errorf("tool %s failed and requested stop", name)
+			isContinue := strings.EqualFold(strings.TrimSpace(tool.OnFailure), "continue")
+			if !isContinue {
+				failed = true
+			}
+			if !checkMode && !isContinue {
+				if strings.EqualFold(strings.TrimSpace(tool.OnFailure), "stop") {
+					PrintSummary(results, time.Since(hookStart))
+					return fmt.Errorf("tool %s failed and requested stop", name)
+				}
 			}
 			continue
 		}

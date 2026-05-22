@@ -121,3 +121,50 @@ func TestParsePushContext_SkipsMalformedLines(t *testing.T) {
 		t.Errorf("expected at most 1 valid ref, got %d", len(ctx.Refs))
 	}
 }
+
+func boolPtr(b bool) *bool { return &b }
+
+// TestRunHookCfg_OnFailureContinue verifies that a tool with on_failure=continue
+// does not cause the hook to return a non-zero exit code.
+// Regression test for: push blocked despite all failing tools having on_failure=continue.
+func TestRunHookCfg_OnFailureContinue(t *testing.T) {
+	dir := initBareGitRepo(t)
+
+	tool := ToolConfig{
+		Command:   "false", // /usr/bin/false — always exits 1
+		Type:      "system",
+		PassFiles: boolPtr(false),
+		OnFailure: "continue",
+	}
+	cfg := HookConfig{
+		Enabled: boolPtr(true),
+		Tools:   map[string]ToolConfig{"always-fails": tool},
+	}
+
+	err := runHookCfg(dir, "pre-push", "", cfg, ExecutionConfig{}, nil, false, false, false)
+	if err != nil {
+		t.Errorf("on_failure=continue must not block the hook, got: %v", err)
+	}
+}
+
+// TestRunHookCfg_DefaultFailureFails verifies that a failing tool without
+// on_failure=continue causes the hook to return an error.
+func TestRunHookCfg_DefaultFailureFails(t *testing.T) {
+	dir := initBareGitRepo(t)
+
+	tool := ToolConfig{
+		Command:   "false",
+		Type:      "system",
+		PassFiles: boolPtr(false),
+		// no OnFailure → default behaviour: fail the hook
+	}
+	cfg := HookConfig{
+		Enabled: boolPtr(true),
+		Tools:   map[string]ToolConfig{"always-fails": tool},
+	}
+
+	err := runHookCfg(dir, "pre-push", "", cfg, ExecutionConfig{}, nil, false, false, false)
+	if err == nil {
+		t.Error("expected error when tool fails without on_failure=continue")
+	}
+}
