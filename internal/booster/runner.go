@@ -20,9 +20,10 @@ var conventionalRegex = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|
 
 // RunOptions controls optional behaviour for a hook run.
 type RunOptions struct {
-	AllFiles bool   // run against all tracked files instead of only staged ones
-	Source   string // git source arg for prepare-commit-msg (merge, squash, ...)
-	NoCache  bool   // bypass run cache for this invocation
+	AllFiles  bool   // run against all tracked files instead of only staged ones
+	Source    string // git source arg for prepare-commit-msg (merge, squash, ...)
+	NoCache   bool   // bypass run cache for this invocation
+	CheckMode bool   // dry-run: use check_args, suppress restage, treat output as failure
 }
 
 func RunHook(hookName string, editFile string) error {
@@ -107,12 +108,12 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 		}
 	}
 
-	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files, opts.AllFiles, opts.NoCache)
+	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files, opts.AllFiles, opts.NoCache, opts.CheckMode)
 }
 
 // runHookCfg executes all tools in hookCfg for the given root / staged files.
 // This is the inner loop used by both the root hook and workspace members.
-func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string, allFiles, noCache bool) error {
+func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string, allFiles, noCache, checkMode bool) error {
 	toolNames := sortedToolNames(hookCfg.Tools)
 	if len(toolNames) == 0 {
 		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))
@@ -176,17 +177,37 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 			}
 		}
 
+		// In check mode, substitute check_args and capture all output.
+		effectiveTool := toolConfigForCheck(tool, checkMode)
+
 		start := time.Now()
-		toolOut, err := executeToolCaptured(root, tool, filesToRun, backend, exec)
+		var toolOut string
+		var err error
+		if checkMode && tool.CheckFailIfOutput {
+			toolOut, err = executeToolCaptureAll(root, effectiveTool, filesToRun, backend, exec)
+			if err == nil && strings.TrimSpace(toolOut) != "" {
+				err = fmt.Errorf("check produced output (check_fail_if_output = true)")
+			}
+		} else {
+			toolOut, err = executeToolCaptured(root, effectiveTool, filesToRun, backend, exec)
+		}
 		dur := time.Since(start)
 
 		if err != nil {
-			r := ToolResult{Name: name, Status: "fail", Duration: dur, Output: toolOut}
+			status := "fail"
+			if checkMode {
+				status = "would-fail"
+			}
+			r := ToolResult{Name: name, Status: status, Duration: dur, Output: toolOut}
 			PrintToolResult(r)
 			results = append(results, r)
 			failed = true
-			if strings.EqualFold(strings.TrimSpace(tool.OnFailure), "stop") {
-				PrintSummary(results, time.Since(hookStart))
+			if !checkMode && strings.EqualFold(strings.TrimSpace(tool.OnFailure), "stop") {
+				if checkMode {
+					PrintCheckSummary(results, time.Since(hookStart))
+				} else {
+					PrintSummary(results, time.Since(hookStart))
+				}
 				return fmt.Errorf("tool %s failed and requested stop", name)
 			}
 			continue
@@ -196,13 +217,13 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		PrintToolResult(r)
 		results = append(results, r)
 
-		// Update cache on success.
-		if cacheEnabled && cacheKey != "" {
+		// Update cache on success (only in normal mode).
+		if !checkMode && cacheEnabled && cacheKey != "" {
 			updateCacheEntry(tc, cacheKey)
 			cacheUpdated = true
 		}
 
-		if tool.Restage && tool.PassFilesEnabled() {
+		if tool.Restage && tool.PassFilesEnabled() && !checkMode {
 			if allFiles {
 				fmt.Fprintf(UI, "%s\n", yellow("  restage suppressed for "+name+" (--all-files mode)"))
 			} else {
@@ -213,7 +234,11 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		}
 	}
 
-	PrintSummary(results, time.Since(hookStart))
+	if checkMode {
+		PrintCheckSummary(results, time.Since(hookStart))
+	} else {
+		PrintSummary(results, time.Since(hookStart))
+	}
 
 	if cacheUpdated {
 		saveCache(root, tc)
@@ -236,6 +261,25 @@ func executeToolCaptured(repoRoot string, tool ToolConfig, files []string, backe
 		return buf.String(), err
 	}
 	return "", nil
+}
+
+// executeToolCaptureAll runs the tool and always returns stdout+stderr, even on success.
+// Used in check mode when check_fail_if_output = true.
+func executeToolCaptureAll(repoRoot string, tool ToolConfig, files []string, backend Backend, execCfg ExecutionConfig) (string, error) {
+	var buf bytes.Buffer
+	err := executeToolWithContext(repoRoot, tool, files, backend, execCfg, &buf)
+	return buf.String(), err
+}
+
+// toolConfigForCheck returns a copy of tool with Args replaced by CheckArgs
+// when in check mode and CheckArgs is non-empty.
+func toolConfigForCheck(tool ToolConfig, checkMode bool) ToolConfig {
+	if !checkMode || len(tool.CheckArgs) == 0 {
+		return tool
+	}
+	t := tool
+	t.Args = tool.CheckArgs
+	return t
 }
 
 func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, editFile string) error {
@@ -590,5 +634,5 @@ func runHookCfgWithPushContext(root, hookName string, hookCfg HookConfig, execCf
 		}
 	}
 	// pre-push tools operate on no staged files (pass_files defaults to false)
-	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil, false, false)
+	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil, false, false, false)
 }

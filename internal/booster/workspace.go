@@ -70,7 +70,7 @@ func runWorkspaceHook(repoRoot, hookName, editFile string, members []string) err
 		if err != nil {
 			return err
 		}
-		if err := runHookCfg(memberRoot, hookName, editFile, hookCfg, cfg.Execution, staged, false, false); err != nil {
+		if err := runHookCfg(memberRoot, hookName, editFile, hookCfg, cfg.Execution, staged, false, false, false); err != nil {
 			return fmt.Errorf("[%s] %w", member, err)
 		}
 	}

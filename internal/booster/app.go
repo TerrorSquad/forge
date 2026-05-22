@@ -103,6 +103,7 @@ func runCommand(args []string) int {
 	edit := fs.String("edit", "", "path to commit message file (for commit-msg hook)")
 	allFiles := fs.Bool("all-files", false, "run against all tracked files (pre-commit only)")
 	noCache := fs.Bool("no-cache", false, "bypass run cache for this invocation")
+	checkMode := fs.Bool("check", false, "dry-run mode: use check_args, suppress restage, treat output as failure")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
 	}
@@ -114,7 +115,7 @@ func runCommand(args []string) int {
 		}
 	}
 
-	opts := RunOptions{AllFiles: *allFiles, NoCache: *noCache}
+	opts := RunOptions{AllFiles: *allFiles, NoCache: *noCache, CheckMode: *checkMode}
 	// Capture second positional arg as source (used by prepare-commit-msg)
 	if extra := fs.Args(); len(extra) > 1 {
 		opts.Source = extra[1]

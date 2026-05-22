@@ -192,21 +192,23 @@ type CommitMessagePolicy struct {
 }
 
 type ToolConfig struct {
-	Command         string   `toml:"command"`
-	Args            []string `toml:"args"`
-	Type            string   `toml:"type"`
-	Backend         string   `toml:"backend"`
-	Extensions      []string `toml:"extensions"`
-	IncludePatterns []string `toml:"include_patterns"`
-	ExcludePatterns []string `toml:"exclude_patterns"`
-	PassFiles       *bool    `toml:"pass_files"`
-	RunPerFile      bool     `toml:"run_per_file"`
-	Restage         bool     `toml:"restage"`
-	OnFailure       string   `toml:"on_failure"`
-	Group           string   `toml:"group"`
-	When            string   `toml:"when"`
-	Timeout         string   `toml:"timeout"` // e.g. "120s", "2m"; empty = use global default
-	Cache           bool     `toml:"cache"`   // enable run cache for this tool
+	Command           string   `toml:"command"`
+	Args              []string `toml:"args"`
+	Type              string   `toml:"type"`
+	Backend           string   `toml:"backend"`
+	Extensions        []string `toml:"extensions"`
+	IncludePatterns   []string `toml:"include_patterns"`
+	ExcludePatterns   []string `toml:"exclude_patterns"`
+	PassFiles         *bool    `toml:"pass_files"`
+	RunPerFile        bool     `toml:"run_per_file"`
+	Restage           bool     `toml:"restage"`
+	OnFailure         string   `toml:"on_failure"`
+	Group             string   `toml:"group"`
+	When              string   `toml:"when"`
+	Timeout           string   `toml:"timeout"`              // e.g. "120s", "2m"; empty = use global default
+	Cache             bool     `toml:"cache"`                // enable run cache for this tool
+	CheckArgs         []string `toml:"check_args"`           // args override used with --check flag
+	CheckFailIfOutput bool     `toml:"check_fail_if_output"` // treat any stdout output as failure in --check mode
 }
 
 // ExecutionConfig holds repository-wide execution defaults.

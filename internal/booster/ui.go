@@ -151,3 +151,32 @@ func PrintSummary(results []ToolResult, total time.Duration) {
 
 	fmt.Fprintf(UI, "\n%s\n", strings.Join(parts, dim(" · ")))
 }
+
+// PrintCheckSummary prints a check-mode "would fail" summary line.
+func PrintCheckSummary(results []ToolResult, total time.Duration) {
+	passed, wouldFail, skipped := 0, 0, 0
+	for _, r := range results {
+		switch r.Status {
+		case "pass", "cached":
+			passed++
+		case "would-fail", "fail":
+			wouldFail++
+		case "skip":
+			skipped++
+		}
+	}
+
+	parts := []string{}
+	if passed > 0 {
+		parts = append(parts, green(fmt.Sprintf("%d passed", passed)))
+	}
+	if wouldFail > 0 {
+		parts = append(parts, red(fmt.Sprintf("%d would fail", wouldFail)))
+	}
+	if skipped > 0 {
+		parts = append(parts, yellow(fmt.Sprintf("%d skipped", skipped)))
+	}
+	parts = append(parts, dim(fmt.Sprintf("total %s", fmtDuration(total))))
+
+	fmt.Fprintf(UI, "\nCheck complete: %s\n", strings.Join(parts, dim(" · ")))
+}
