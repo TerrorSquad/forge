@@ -17,6 +17,9 @@ func Run(args []string) int {
 	case "help", "-h", "--help":
 		printHelp()
 		return 0
+	case "version", "-v", "--version":
+		fmt.Printf("booster %s (commit: %s, built: %s)\n", Version, Commit, Date)
+		return 0
 	case "init":
 		fs := flag.NewFlagSet("init", flag.ContinueOnError)
 		force := fs.Bool("force", false, "overwrite booster.toml if it already exists")

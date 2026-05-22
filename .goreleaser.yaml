@@ -1,0 +1,86 @@
+version: 2
+
+project_name: booster
+
+before:
+  hooks:
+    - go mod tidy
+    - go vet ./...
+
+builds:
+  - id: booster
+    main: ./cmd/booster
+    binary: booster
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/TerrorSquad/gobooster/internal/booster.Version={{.Version}}
+      - -X github.com/TerrorSquad/gobooster/internal/booster.Commit={{.Commit}}
+      - -X github.com/TerrorSquad/gobooster/internal/booster.Date={{.Date}}
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - booster.toml.example
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^chore(deps)"
+      - "^Merge"
+  groups:
+    - title: "New Features"
+      regexp: "^feat"
+      order: 0
+    - title: "Bug Fixes"
+      regexp: "^fix"
+      order: 1
+    - title: "Other Changes"
+      order: 999
+
+release:
+  github:
+    owner: TerrorSquad
+    name: gobooster
+  draft: false
+  prerelease: auto
+  name_template: "{{.ProjectName}} v{{.Version}}"
+
+# Homebrew tap (optional — uncomment when tap repo exists)
+# brews:
+#   - repository:
+#       owner: TerrorSquad
+#       name: homebrew-tap
+#     homepage: https://github.com/TerrorSquad/gobooster
+#     description: Policy-driven git hook runner
+#     directory: Formula
+#     install: bin.install "booster"
+#     test: |
+#       system "#{bin}/booster", "--help"

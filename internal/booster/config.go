@@ -161,6 +161,13 @@ func ListPresets() []string {
 
 var ErrHookSkipped = errors.New("hook skipped")
 
+// Version information injected at build time via ldflags.
+var (
+	Version = "dev"
+	Commit  = "none"
+	Date    = "unknown"
+)
+
 type Config struct {
 	Hooks     map[string]HookConfig `toml:"hooks"`
 	Execution ExecutionConfig       `toml:"execution"`
