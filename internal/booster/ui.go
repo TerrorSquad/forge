@@ -83,6 +83,35 @@ type ToolResult struct {
 	Output   string // captured stderr/stdout on failure
 }
 
+// isInteractiveTerminal reports whether the UI writer is a real terminal.
+// Used to suppress inline-overwrite indicators in CI / piped output.
+func isInteractiveTerminal() bool {
+	f, ok := UI.(*os.File)
+	if !ok {
+		return false
+	}
+	return isTerminal(f)
+}
+
+// printRunning writes a dim "·  name" indicator without a trailing newline.
+// Call clearRunning() + PrintToolResult() immediately after the tool finishes
+// to overwrite it in-place. Does nothing when not on an interactive terminal.
+func printRunning(name string) {
+	if !isInteractiveTerminal() {
+		return
+	}
+	fmt.Fprintf(UI, "  %s  %s", dim("·"), dim(name))
+}
+
+// clearRunning erases the running indicator on the current line so that
+// PrintToolResult can overwrite it cleanly. No-op on non-interactive terminals.
+func clearRunning() {
+	if !isInteractiveTerminal() {
+		return
+	}
+	fmt.Fprintf(UI, "\r\033[2K")
+}
+
 // PrintHookHeader prints the hook name banner.
 func PrintHookHeader(hookName string) {
 	fmt.Fprintf(UI, "\n%s\n", bold(hookName))
@@ -96,7 +125,7 @@ func PrintToolResult(r ToolResult) {
 	case "pass":
 		icon = green("✓")
 		nameStr = r.Name
-	case "fail":
+	case "fail", "would-fail":
 		icon = red("✗")
 		nameStr = red(r.Name)
 	case "skip":

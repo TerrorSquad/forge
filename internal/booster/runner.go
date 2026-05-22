@@ -133,9 +133,6 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		return runHookCfgParallel(root, hookName, hookCfg, exec, files, allFiles, noCache, checkMode)
 	}
 	toolNames := sortedToolNames(hookCfg.Tools)
-	if isTUIMode(len(toolNames)) {
-		return runHookCfgTUI(root, hookName, hookCfg, exec, files, allFiles, noCache, checkMode)
-	}
 	if len(toolNames) == 0 {
 		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))
 		return nil
@@ -185,8 +182,8 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		// Skip tool if its binary is not available (mirrors legacy hook behaviour).
 		resolvedCmd := resolveCommandForBackend(root, tool, backend)
 		if !toolBinaryAvailable(root, resolvedCmd, backend) {
-			r := ToolResult{Name: name, Status: "skip"}
-			fmt.Fprintf(UI, "%s\n", dim("  "+name+" skipped (binary not found: "+resolvedCmd+")"))
+			r := ToolResult{Name: name, Status: "skip", Output: "binary not found: " + resolvedCmd}
+			PrintToolResult(r)
 			results = append(results, r)
 			continue
 		}
@@ -208,6 +205,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		// In check mode, substitute check_args and capture all output.
 		effectiveTool := toolConfigForCheck(tool, checkMode)
 
+		printRunning(name)
 		start := time.Now()
 		var toolOut string
 		var err error
@@ -220,6 +218,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 			toolOut, err = executeToolCaptured(root, effectiveTool, filesToRun, backend, exec)
 		}
 		dur := time.Since(start)
+		clearRunning()
 
 		if err != nil {
 			status := "fail"
@@ -231,11 +230,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 			results = append(results, r)
 			failed = true
 			if !checkMode && strings.EqualFold(strings.TrimSpace(tool.OnFailure), "stop") {
-				if checkMode {
-					PrintCheckSummary(results, time.Since(hookStart))
-				} else {
-					PrintSummary(results, time.Since(hookStart))
-				}
+				PrintSummary(results, time.Since(hookStart))
 				return fmt.Errorf("tool %s failed and requested stop", name)
 			}
 			continue
