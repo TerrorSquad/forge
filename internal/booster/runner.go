@@ -20,7 +20,8 @@ var conventionalRegex = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|
 
 // RunOptions controls optional behaviour for a hook run.
 type RunOptions struct {
-	AllFiles bool // run against all tracked files instead of only staged ones
+	AllFiles bool   // run against all tracked files instead of only staged ones
+	Source   string // git source arg for prepare-commit-msg (merge, squash, ...)
 }
 
 func RunHook(hookName string, editFile string) error {
@@ -71,6 +72,12 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 
 	if hookName == "commit-msg" {
 		if err := applyCommitMessagePolicy(repoRoot, hookCfg.Policy, editFile); err != nil {
+			return err
+		}
+	}
+
+	if hookName == "prepare-commit-msg" {
+		if err := applyPrepareCommitMsgPolicy(repoRoot, hookCfg.Policy, editFile, opts.Source); err != nil {
 			return err
 		}
 	}
@@ -253,6 +260,47 @@ func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, edit
 	}
 
 	return nil
+}
+
+// applyPrepareCommitMsgPolicy optionally prepends the ticket from the branch name.
+func applyPrepareCommitMsgPolicy(repoRoot string, policy *CommitMessagePolicy, editFile, source string) error {
+	if policy == nil || !policy.PrependTicket {
+		return nil
+	}
+
+	if editFile == "" {
+		return nil
+	}
+
+	if policy.SkipOnMerge && (source == "merge" || source == "squash") {
+		return nil
+	}
+
+	branch, err := currentBranch(repoRoot)
+	if err != nil {
+		return err
+	}
+
+	ticket := ""
+	if m := ticketRegex.FindStringSubmatch(branch); len(m) > 1 {
+		ticket = m[1]
+	}
+	if ticket == "" {
+		return nil
+	}
+
+	content, err := os.ReadFile(editFile)
+	if err != nil {
+		return err
+	}
+
+	if policy.SkipIfPresent && strings.Contains(string(content), ticket) {
+		return nil
+	}
+
+	prefix := ticket + ": "
+	rewritten := prefix + string(content)
+	return os.WriteFile(editFile, []byte(rewritten), 0644)
 }
 
 func executeTool(repoRoot string, tool ToolConfig, files []string, backend Backend, execCfg ExecutionConfig) error {

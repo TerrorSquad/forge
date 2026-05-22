@@ -185,6 +185,10 @@ type CommitMessagePolicy struct {
 	AppendTicketFooter  bool   `toml:"append_ticket_footer"`
 	RequireTicket       bool   `toml:"require_ticket"`
 	BranchPattern       string `toml:"branch_pattern"`
+	// prepare-commit-msg specific
+	PrependTicket bool `toml:"prepend_ticket"`
+	SkipOnMerge   bool `toml:"skip_on_merge"`
+	SkipIfPresent bool `toml:"skip_if_present"`
 }
 
 type ToolConfig struct {

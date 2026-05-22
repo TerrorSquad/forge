@@ -188,3 +188,88 @@ func countOccurrences(s, sub string) int {
 	}
 	return count
 }
+
+func TestApplyPrepareCommitMsgPolicy_PrependTicket(t *testing.T) {
+	dir := initBareGitRepo(t)
+	createBranchInRepo(t, dir, "feat/PRJ-42-my-feature")
+
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "add widget\n")
+
+	policy := &CommitMessagePolicy{PrependTicket: true}
+	if err := applyPrepareCommitMsgPolicy(dir, policy, msgFile, "message"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	content, _ := os.ReadFile(msgFile)
+	if !contains(string(content), "PRJ-42: ") {
+		t.Errorf("expected ticket prefix, got: %q", string(content))
+	}
+}
+
+func TestApplyPrepareCommitMsgPolicy_SkipOnMerge(t *testing.T) {
+	dir := initBareGitRepo(t)
+	createBranchInRepo(t, dir, "feat/PRJ-42-my-feature")
+
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	original := "Merge branch 'main'\n"
+	writeFile(t, msgFile, original)
+
+	policy := &CommitMessagePolicy{PrependTicket: true, SkipOnMerge: true}
+	if err := applyPrepareCommitMsgPolicy(dir, policy, msgFile, "merge"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	content, _ := os.ReadFile(msgFile)
+	if string(content) != original {
+		t.Errorf("expected file unchanged for merge, got: %q", string(content))
+	}
+}
+
+func TestApplyPrepareCommitMsgPolicy_SkipIfPresent(t *testing.T) {
+	dir := initBareGitRepo(t)
+	createBranchInRepo(t, dir, "feat/PRJ-42-my-feature")
+
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	original := "PRJ-42: already present\n"
+	writeFile(t, msgFile, original)
+
+	policy := &CommitMessagePolicy{PrependTicket: true, SkipIfPresent: true}
+	if err := applyPrepareCommitMsgPolicy(dir, policy, msgFile, ""); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	content, _ := os.ReadFile(msgFile)
+	if string(content) != original {
+		t.Errorf("expected file unchanged when ticket already present, got: %q", string(content))
+	}
+}
+
+func TestApplyPrepareCommitMsgPolicy_NilPolicy(t *testing.T) {
+	dir := t.TempDir()
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "some message\n")
+
+	if err := applyPrepareCommitMsgPolicy(dir, nil, msgFile, ""); err != nil {
+		t.Errorf("nil policy should be no-op, got: %v", err)
+	}
+}
+
+func TestApplyPrepareCommitMsgPolicy_NoTicketInBranch(t *testing.T) {
+	dir := initBareGitRepo(t)
+	createBranchInRepo(t, dir, "feat/no-ticket-here")
+
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	original := "some message\n"
+	writeFile(t, msgFile, original)
+
+	policy := &CommitMessagePolicy{PrependTicket: true}
+	if err := applyPrepareCommitMsgPolicy(dir, policy, msgFile, ""); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	content, _ := os.ReadFile(msgFile)
+	if string(content) != original {
+		t.Errorf("file should be unchanged when no ticket in branch, got: %q", string(content))
+	}
+}

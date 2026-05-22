@@ -104,6 +104,10 @@ func runCommand(args []string) int {
 	}
 
 	opts := RunOptions{AllFiles: *allFiles}
+	// Capture second positional arg as source (used by prepare-commit-msg)
+	if extra := fs.Args(); len(extra) > 1 {
+		opts.Source = extra[1]
+	}
 	if err := RunHookWithOptions(hook, *edit, opts); err != nil {
 		if errors.Is(err, ErrHookSkipped) {
 			return 0
