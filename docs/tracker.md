@@ -47,7 +47,16 @@ Track implementation progress for all booster features.
 | [025](specs/feature-025-remote-presets.md) | Remote Presets | ✅ Done | P3 | `--preset https://...`; HTTPS-only; TOML validation; `--yes`/`CI=true` skip prompt |
 | [026](specs/feature-026-check-dry-run.md) | `--check` Dry-Run Mode | ✅ Done | P3 | `booster run pre-commit --check`; `check_args`/`check_fail_if_output` per tool; `would-fail` status; check-mode summary |
 | [027](specs/feature-027-post-commit.md) | `post-commit` Hook | ✅ Done | P3 | Informational banner; failures surfaced but commit not aborted; `SKIP_POSTCOMMIT=1` |
-| [028](specs/feature-028-tui-progress.md) | TUI Progress | ⏸ Deferred | P4 | Bubble Tea live progress bars; deferred |
+| [028](specs/feature-028-tui-progress.md) | TUI Progress | ✅ Done | P4 | ANSI in-place spinner view; activates on TTY with 2+ tools; `BOOSTER_NO_TUI=1` disables; no external deps |
+
+## Bonus Features
+
+| # | Feature | Status | Priority | Notes |
+|---|---------|--------|----------|-------|
+| B1 | `post-merge` Hook | ✅ Done | P3 | Informational; same pattern as `post-commit` |
+| B2 | `post-rewrite` Hook | ✅ Done | P3 | Informational; source passed as first arg |
+| B3 | `booster list` | ✅ Done | P2 | Prints all configured hooks + tools with enabled/disabled state, backend, group |
+| B4 | `booster ci` | ✅ Done | P2 | Opinionated CI alias: `run pre-commit --all-files --check --no-cache` |
 
 ---
 
@@ -57,8 +66,9 @@ Track implementation progress for all booster features.
 |-----------|----------|------|----------|
 | v1 core   | 001–009  | 9/9  | ✅ Complete |
 | v1.x      | 010–014  | 5/5  | ✅ Complete |
-| v2        | 015–028  | 13/14 | 🔄 93% |
-| **Total** | **28**   | **27** | **96%** |
+| v2        | 015–028  | 14/14 | ✅ Complete |
+| Bonus     | B1–B4    | 4/4  | ✅ Complete |
+| **Total** | **32**   | **32** | **100%** |
 
 ---
 
@@ -75,3 +85,5 @@ Track implementation progress for all booster features.
 | 2026-05-22 | Global user config merges at execution scalars and per-hook tool maps only; workspace config excluded from merge |
 | 2026-05-22 | Remote presets require `https://` only; content validated as TOML before writing; CI env or `--yes` skips prompt |
 | 2026-05-22 | Feature 029 (booster publish) removed from scope — not needed |
+| 2026-05-22 | TUI implemented with raw ANSI escape codes instead of bubbletea — Go 1.23 pin + network issues; same visual result with zero new dependencies |
+| 2026-05-22 | `booster ci` is a thin alias for `run pre-commit --all-files --check --no-cache`; CI pipelines get one clean command |
