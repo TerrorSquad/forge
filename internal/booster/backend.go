@@ -1,0 +1,148 @@
+package booster
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+)
+
+// Backend represents an execution environment for tool commands.
+type Backend interface {
+	// Name returns the backend identifier.
+	Name() string
+	// Exec runs cmd with args, streaming stdout/stderr.
+	Exec(dir string, cmd []string) error
+	// BinaryExists checks whether the named binary is available in this backend.
+	BinaryExists(dir, binary string) bool
+}
+
+// HostBackend runs commands directly on the host.
+type HostBackend struct{}
+
+func (b *HostBackend) Name() string { return "host" }
+
+func (b *HostBackend) Exec(dir string, cmd []string) error {
+	c := exec.Command(cmd[0], cmd[1:]...)
+	c.Dir = dir
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	c.Stdin = os.Stdin
+	return c.Run()
+}
+
+func (b *HostBackend) BinaryExists(dir, binary string) bool {
+	// Check project-local paths first (vendor/bin, node_modules/.bin)
+	local := []string{
+		filepath.Join(dir, "vendor", "bin", binary),
+		filepath.Join(dir, "node_modules", ".bin", binary),
+	}
+	for _, p := range local {
+		if _, err := os.Stat(p); err == nil {
+			return true
+		}
+	}
+	_, err := exec.LookPath(binary)
+	return err == nil
+}
+
+// DdevBackend routes commands through `ddev exec`.
+type DdevBackend struct{}
+
+func (b *DdevBackend) Name() string { return "ddev" }
+
+func (b *DdevBackend) Exec(dir string, cmd []string) error {
+	ddevCmd := append([]string{"ddev", "exec", "--"}, cmd...)
+	c := exec.Command(ddevCmd[0], ddevCmd[1:]...)
+	c.Dir = dir
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	c.Stdin = os.Stdin
+	return c.Run()
+}
+
+func (b *DdevBackend) BinaryExists(dir, binary string) bool {
+	// For DDEV, check vendor/bin and node_modules/.bin inside the project
+	local := []string{
+		filepath.Join(dir, "vendor", "bin", binary),
+		filepath.Join(dir, "node_modules", ".bin", binary),
+	}
+	for _, p := range local {
+		if _, err := os.Stat(p); err == nil {
+			return true
+		}
+	}
+	// Also accept system-level tools the container likely has (php, composer, node)
+	system := map[string]bool{"php": true, "composer": true, "node": true, "npm": true}
+	return system[binary]
+}
+
+// ResolveBackend returns the appropriate backend for a tool in the given repo root.
+// Priority: per-tool override → global config default → DDEV auto-detect → host
+func ResolveBackend(repoRoot string, tool ToolConfig, globalDefault string) Backend {
+	name := tool.Backend
+	if name == "" {
+		name = globalDefault
+	}
+
+	// Explicit backend requested
+	switch name {
+	case "ddev":
+		return &DdevBackend{}
+	case "host":
+		return &HostBackend{}
+	}
+
+	// Auto-detect DDEV
+	if isDdevRunning(repoRoot) {
+		return &DdevBackend{}
+	}
+
+	return &HostBackend{}
+}
+
+// isDdevRunning returns true if a DDEV project is active in repoRoot.
+func isDdevRunning(repoRoot string) bool {
+	cfg := filepath.Join(repoRoot, ".ddev", "config.yaml")
+	if _, err := os.Stat(cfg); err != nil {
+		return false
+	}
+	var out bytes.Buffer
+	c := exec.Command("ddev", "status", "--json-output")
+	c.Dir = repoRoot
+	c.Stdout = &out
+	if err := c.Run(); err != nil {
+		return false
+	}
+	return bytes.Contains(out.Bytes(), []byte(`"running"`))
+}
+
+// resolveCommandForBackend resolves a vendor/node_modules binary path relative
+// to repo root depending on the tool type and active backend.
+func resolveCommandForBackend(repoRoot string, tool ToolConfig, backend Backend) string {
+	cmd := tool.Command
+	switch tool.Type {
+	case "php":
+		local := filepath.Join(repoRoot, "vendor", "bin", cmd)
+		if _, err := os.Stat(local); err == nil {
+			return local
+		}
+	case "node":
+		local := filepath.Join(repoRoot, "node_modules", ".bin", cmd)
+		if _, err := os.Stat(local); err == nil {
+			return local
+		}
+	}
+	return cmd
+}
+
+// BackendAvailabilityError is returned when no suitable backend can execute a tool.
+type BackendAvailabilityError struct {
+	Tool    string
+	Backend string
+}
+
+func (e *BackendAvailabilityError) Error() string {
+	return fmt.Sprintf("tool %q not available via backend %q", e.Tool, e.Backend)
+}

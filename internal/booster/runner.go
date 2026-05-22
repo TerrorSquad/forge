@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -88,8 +87,9 @@ func RunHook(hookName string, editFile string) error {
 			continue
 		}
 
-		fmt.Printf("- %s: running\n", name)
-		err := executeTool(repoRoot, tool, filesToRun)
+		backend := ResolveBackend(repoRoot, tool, cfg.Execution.DefaultBackend)
+		fmt.Printf("- %s: running (backend: %s)\n", name, backend.Name())
+		err := executeTool(repoRoot, tool, filesToRun, backend)
 		if err != nil {
 			fmt.Printf("  %s failed: %v\n", name, err)
 			failed = true
@@ -164,14 +164,15 @@ func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, edit
 	return nil
 }
 
-func executeTool(repoRoot string, tool ToolConfig, files []string) error {
+func executeTool(repoRoot string, tool ToolConfig, files []string, backend Backend) error {
+	cmd := resolveCommandForBackend(repoRoot, tool, backend)
 	if tool.RunPerFile {
 		for _, file := range files {
 			args := append([]string{}, tool.Args...)
 			if tool.PassFilesEnabled() {
 				args = append(args, file)
 			}
-			if err := runToolCommand(repoRoot, tool.Command, args); err != nil {
+			if err := backend.Exec(repoRoot, append([]string{cmd}, args...)); err != nil {
 				return err
 			}
 		}
@@ -182,16 +183,7 @@ func executeTool(repoRoot string, tool ToolConfig, files []string) error {
 	if tool.PassFilesEnabled() {
 		args = append(args, files...)
 	}
-	return runToolCommand(repoRoot, tool.Command, args)
-}
-
-func runToolCommand(repoRoot, cmdName string, args []string) error {
-	cmd := exec.Command(cmdName, args...)
-	cmd.Dir = repoRoot
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	return cmd.Run()
+	return backend.Exec(repoRoot, append([]string{cmd}, args...))
 }
 
 func filterFiles(files []string, tool ToolConfig) []string {

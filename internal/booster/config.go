@@ -45,7 +45,8 @@ enabled = false
 var ErrHookSkipped = errors.New("hook skipped")
 
 type Config struct {
-	Hooks map[string]HookConfig `toml:"hooks"`
+	Hooks     map[string]HookConfig `toml:"hooks"`
+	Execution ExecutionConfig       `toml:"execution"`
 }
 
 type HookConfig struct {
@@ -65,6 +66,7 @@ type ToolConfig struct {
 	Command         string   `toml:"command"`
 	Args            []string `toml:"args"`
 	Type            string   `toml:"type"`
+	Backend         string   `toml:"backend"`
 	Extensions      []string `toml:"extensions"`
 	IncludePatterns []string `toml:"include_patterns"`
 	ExcludePatterns []string `toml:"exclude_patterns"`
@@ -74,6 +76,11 @@ type ToolConfig struct {
 	OnFailure       string   `toml:"on_failure"`
 	Group           string   `toml:"group"`
 	When            string   `toml:"when"`
+}
+
+// ExecutionConfig holds repository-wide execution defaults.
+type ExecutionConfig struct {
+	DefaultBackend string `toml:"default_backend"`
 }
 
 func InitConfig(force bool) error {
