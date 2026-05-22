@@ -47,6 +47,7 @@ var ErrHookSkipped = errors.New("hook skipped")
 type Config struct {
 	Hooks     map[string]HookConfig `toml:"hooks"`
 	Execution ExecutionConfig       `toml:"execution"`
+	Workspace WorkspaceConfig       `toml:"workspace"`
 }
 
 type HookConfig struct {
@@ -83,6 +84,11 @@ type ExecutionConfig struct {
 	DefaultBackend string `toml:"default_backend"`
 }
 
+// WorkspaceConfig defines monorepo member discovery.
+type WorkspaceConfig struct {
+	Members []string `toml:"members"`
+}
+
 func InitConfig(force bool) error {
 	path := "booster.toml"
 	_, err := os.Stat(path)
@@ -94,6 +100,21 @@ func InitConfig(force bool) error {
 	}
 
 	return os.WriteFile(path, []byte(defaultConfig), 0644)
+}
+
+func loadConfigFromPath(p string) (*Config, string, error) {
+	data, err := os.ReadFile(p)
+	if err != nil {
+		return nil, "", err
+	}
+	var cfg Config
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return nil, "", fmt.Errorf("invalid config at %s: %w", p, err)
+	}
+	if cfg.Hooks == nil {
+		cfg.Hooks = map[string]HookConfig{}
+	}
+	return &cfg, p, nil
 }
 
 func LoadConfig(repoRoot string) (*Config, string, error) {

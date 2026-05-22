@@ -37,6 +37,21 @@ func RunHook(hookName string, editFile string) error {
 		return ErrHookSkipped
 	}
 
+	// Workspace mode: run hook for each affected member
+	if len(cfg.Workspace.Members) > 0 && hookName != "commit-msg" {
+		staged, err := stagedFiles(repoRoot)
+		if err != nil {
+			return err
+		}
+		members, err := matchingMembers(repoRoot, cfg.Workspace.Members, staged)
+		if err != nil {
+			return err
+		}
+		if len(members) > 0 {
+			return runWorkspaceHook(repoRoot, hookName, editFile, members)
+		}
+	}
+
 	if hookName == "commit-msg" {
 		if err := applyCommitMessagePolicy(repoRoot, hookCfg.Policy, editFile); err != nil {
 			return err
@@ -55,6 +70,12 @@ func RunHook(hookName string, editFile string) error {
 		}
 	}
 
+	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files)
+}
+
+// runHookCfg executes all tools in hookCfg for the given root / staged files.
+// This is the inner loop used by both the root hook and workspace members.
+func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string) error {
 	toolNames := sortedToolNames(hookCfg.Tools)
 	if len(toolNames) == 0 {
 		fmt.Printf("No tools configured for %s\n", hookName)
@@ -87,9 +108,9 @@ func RunHook(hookName string, editFile string) error {
 			continue
 		}
 
-		backend := ResolveBackend(repoRoot, tool, cfg.Execution.DefaultBackend)
+		backend := ResolveBackend(root, tool, exec.DefaultBackend)
 		fmt.Printf("- %s: running (backend: %s)\n", name, backend.Name())
-		err := executeTool(repoRoot, tool, filesToRun, backend)
+		err := executeTool(root, tool, filesToRun, backend)
 		if err != nil {
 			fmt.Printf("  %s failed: %v\n", name, err)
 			failed = true
@@ -100,7 +121,7 @@ func RunHook(hookName string, editFile string) error {
 		}
 
 		if tool.Restage && tool.PassFilesEnabled() {
-			if err := addFiles(repoRoot, filesToRun); err != nil {
+			if err := addFiles(root, filesToRun); err != nil {
 				return fmt.Errorf("tool %s restage failed: %w", name, err)
 			}
 		}
