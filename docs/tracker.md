@@ -68,7 +68,8 @@ Track implementation progress for all booster features.
 | v1.x      | 010–014  | 5/5  | ✅ Complete |
 | v2        | 015–028  | 14/14 | ✅ Complete |
 | Bonus     | B1–B4    | 4/4  | ✅ Complete |
-| **Total** | **32**   | **32** | **100%** |
+| Bonus     | B5–B7    | 3/3  | ✅ Complete |
+| **Total** | **35**   | **35** | **100%** |
 
 ---
 
@@ -87,3 +88,6 @@ Track implementation progress for all booster features.
 | 2026-05-22 | Feature 029 (booster publish) removed from scope — not needed |
 | 2026-05-22 | TUI implemented with raw ANSI escape codes instead of bubbletea — Go 1.23 pin + network issues; same visual result with zero new dependencies |
 | 2026-05-22 | `booster ci` is a thin alias for `run pre-commit --all-files --check --no-cache`; CI pipelines get one clean command |
+| 2026-05-22 | B5: graceful binary-not-found skip across all three runners (sequential, TUI, parallel) — mirrors legacy hook behaviour |
+| 2026-05-22 | B6: DeEconnectEconnectApi migrated from Husky/ZX to booster; `booster.toml` committed, `package.json` prepare script updated |
+| 2026-05-22 | B7: `booster migrate` now supports econnect camelCase nested JSON format (`hooks.preCommit`, `stagesFilesAfter`, `runForEachFile`) |
