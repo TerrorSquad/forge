@@ -78,6 +78,8 @@ func Run(args []string) int {
 		}
 		fmt.Print(script)
 		return 0
+	case "cache":
+		return cacheCommand(args[1:])
 	case "run":
 		return runCommand(args[1:])
 	case "migrate":
@@ -99,6 +101,7 @@ func runCommand(args []string) int {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	edit := fs.String("edit", "", "path to commit message file (for commit-msg hook)")
 	allFiles := fs.Bool("all-files", false, "run against all tracked files (pre-commit only)")
+	noCache := fs.Bool("no-cache", false, "bypass run cache for this invocation")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
 	}
@@ -110,7 +113,7 @@ func runCommand(args []string) int {
 		}
 	}
 
-	opts := RunOptions{AllFiles: *allFiles}
+	opts := RunOptions{AllFiles: *allFiles, NoCache: *noCache}
 	// Capture second positional arg as source (used by prepare-commit-msg)
 	if extra := fs.Args(); len(extra) > 1 {
 		opts.Source = extra[1]
@@ -160,5 +163,24 @@ Examples:
   booster install
   booster run pre-commit
   booster run commit-msg --edit .git/COMMIT_EDITMSG
-  booster migrate --from .git-hooks.config.json --to booster.toml`)
+  booster migrate --from .git-hooks.config.json --to booster.toml
+  booster cache clear`)
+}
+
+func cacheCommand(args []string) int {
+	if len(args) == 0 || args[0] != "clear" {
+		fmt.Fprintln(os.Stderr, "usage: booster cache clear")
+		return 2
+	}
+	repoRoot, err := detectRepoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cache clear failed: %v\n", err)
+		return 1
+	}
+	if err := ClearCache(repoRoot); err != nil {
+		fmt.Fprintf(os.Stderr, "cache clear failed: %v\n", err)
+		return 1
+	}
+	fmt.Println("cache cleared")
+	return 0
 }

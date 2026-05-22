@@ -38,9 +38,28 @@ func InstallHooks() error {
 		return err
 	}
 
+	// Add .booster/cache.json to .git/info/exclude so it is never committed.
+	excludeFile := filepath.Join(repoRoot, ".git", "info", "exclude")
+	excludeEntry := ".booster/cache.json\n"
+	addToExclude(excludeFile, excludeEntry)
+
 	fmt.Println("Installed hook shims in .booster/hooks")
 	fmt.Println("Configured git core.hooksPath=.booster/hooks")
 	return nil
+}
+
+// addToExclude appends an entry to the given exclude file if not already present.
+func addToExclude(path, entry string) {
+	data, _ := os.ReadFile(path)
+	if strings.Contains(string(data), strings.TrimSpace(entry)) {
+		return
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	_, _ = f.WriteString(entry)
 }
 
 func UninstallHooks() error {

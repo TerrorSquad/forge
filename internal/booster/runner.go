@@ -22,6 +22,7 @@ var conventionalRegex = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|
 type RunOptions struct {
 	AllFiles bool   // run against all tracked files instead of only staged ones
 	Source   string // git source arg for prepare-commit-msg (merge, squash, ...)
+	NoCache  bool   // bypass run cache for this invocation
 }
 
 func RunHook(hookName string, editFile string) error {
@@ -106,12 +107,12 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 		}
 	}
 
-	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files, opts.AllFiles)
+	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files, opts.AllFiles, opts.NoCache)
 }
 
 // runHookCfg executes all tools in hookCfg for the given root / staged files.
 // This is the inner loop used by both the root hook and workspace members.
-func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string, allFiles bool) error {
+func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string, allFiles, noCache bool) error {
 	toolNames := sortedToolNames(hookCfg.Tools)
 	if len(toolNames) == 0 {
 		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))
@@ -124,6 +125,10 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 	var results []ToolResult
 	hookStart := time.Now()
 	failed := false
+
+	// Load cache once for the hook run.
+	tc := loadCache(root)
+	cacheUpdated := false
 
 	for _, name := range toolNames {
 		tool := hookCfg.Tools[name]
@@ -155,6 +160,22 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		}
 
 		backend := ResolveBackend(root, tool, exec.DefaultBackend)
+
+		// Check run cache.
+		cacheEnabled := !noCache && (tool.Cache || exec.Cache)
+		var cacheKey string
+		if cacheEnabled {
+			if k, err := toolCacheKey(tool, filesToRun); err == nil {
+				cacheKey = k
+				if isCacheHit(tc, cacheKey) {
+					r := ToolResult{Name: name, Status: "cached"}
+					PrintToolResult(r)
+					results = append(results, r)
+					continue
+				}
+			}
+		}
+
 		start := time.Now()
 		toolOut, err := executeToolCaptured(root, tool, filesToRun, backend, exec)
 		dur := time.Since(start)
@@ -175,6 +196,12 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		PrintToolResult(r)
 		results = append(results, r)
 
+		// Update cache on success.
+		if cacheEnabled && cacheKey != "" {
+			updateCacheEntry(tc, cacheKey)
+			cacheUpdated = true
+		}
+
 		if tool.Restage && tool.PassFilesEnabled() {
 			if allFiles {
 				fmt.Fprintf(UI, "%s\n", yellow("  restage suppressed for "+name+" (--all-files mode)"))
@@ -187,6 +214,10 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 	}
 
 	PrintSummary(results, time.Since(hookStart))
+
+	if cacheUpdated {
+		saveCache(root, tc)
+	}
 
 	if failed {
 		return errors.New("one or more tools failed")
@@ -559,5 +590,5 @@ func runHookCfgWithPushContext(root, hookName string, hookCfg HookConfig, execCf
 		}
 	}
 	// pre-push tools operate on no staged files (pass_files defaults to false)
-	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil, false)
+	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil, false, false)
 }
