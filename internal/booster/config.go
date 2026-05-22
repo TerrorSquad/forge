@@ -222,6 +222,10 @@ type WorkspaceConfig struct {
 }
 
 func InitConfig(force bool, preset string) error {
+	return InitConfigWithOptions(force, false, preset)
+}
+
+func InitConfigWithOptions(force, yes bool, preset string) error {
 	path := "booster.toml"
 	_, err := os.Stat(path)
 	if err == nil && !force {
@@ -231,13 +235,23 @@ func InitConfig(force bool, preset string) error {
 		return err
 	}
 
-	content := defaultConfig
-	if preset != "" {
+	var content string
+	if strings.HasPrefix(preset, "https://") {
+		fetched, err := fetchRemotePreset(preset, yes)
+		if err != nil {
+			return err
+		}
+		content = fetched
+	} else if strings.HasPrefix(preset, "http://") {
+		return fmt.Errorf("remote presets require an https:// URL, got %q", preset)
+	} else if preset != "" {
 		p, ok := presets[strings.ToLower(preset)]
 		if !ok {
 			return fmt.Errorf("unknown preset %q; available: %s", preset, strings.Join(ListPresets(), ", "))
 		}
 		content = p
+	} else {
+		content = defaultConfig
 	}
 
 	return os.WriteFile(path, []byte(content), 0644)

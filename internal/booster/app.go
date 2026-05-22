@@ -23,8 +23,9 @@ func Run(args []string) int {
 	case "init":
 		fs := flag.NewFlagSet("init", flag.ContinueOnError)
 		force := fs.Bool("force", false, "overwrite booster.toml if it already exists")
-		preset := fs.String("preset", "", "starter preset (node, php, php-node, go, minimal)")
+		preset := fs.String("preset", "", "starter preset (node, php, php-node, go, minimal) or https:// URL")
 		listPresets := fs.Bool("list-presets", false, "list available presets and exit")
+		yes := fs.Bool("yes", false, "skip confirmation prompt (also set by CI=true)")
 		if err := fs.Parse(args[1:]); err != nil {
 			return 2
 		}
@@ -35,7 +36,7 @@ func Run(args []string) int {
 			}
 			return 0
 		}
-		if err := InitConfig(*force, *preset); err != nil {
+		if err := InitConfigWithOptions(*force, *yes, *preset); err != nil {
 			fmt.Fprintf(os.Stderr, "init failed: %v\n", err)
 			return 1
 		}
