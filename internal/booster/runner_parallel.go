@@ -110,9 +110,12 @@ func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec Executio
 			allResults = append(allResults, pr.result)
 
 			if pr.err != nil {
-				failed = true
+				isContinue := strings.EqualFold(strings.TrimSpace(pr.tool.OnFailure), "continue")
+				if !isContinue {
+					failed = true
+				}
 				// Check if this specific tool requests stop — skip remaining waves
-				if strings.EqualFold(strings.TrimSpace(pr.tool.OnFailure), "stop") {
+				if !isContinue && strings.EqualFold(strings.TrimSpace(pr.tool.OnFailure), "stop") {
 					if checkMode {
 						PrintCheckSummary(allResults, time.Since(hookStart))
 					} else {
