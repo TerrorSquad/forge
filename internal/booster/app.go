@@ -79,6 +79,7 @@ func runCommand(args []string) int {
 	hook := args[0]
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	edit := fs.String("edit", "", "path to commit message file (for commit-msg hook)")
+	allFiles := fs.Bool("all-files", false, "run against all tracked files (pre-commit only)")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
 	}
@@ -90,7 +91,8 @@ func runCommand(args []string) int {
 		}
 	}
 
-	if err := RunHook(hook, *edit); err != nil {
+	opts := RunOptions{AllFiles: *allFiles}
+	if err := RunHookWithOptions(hook, *edit, opts); err != nil {
 		if errors.Is(err, ErrHookSkipped) {
 			return 0
 		}

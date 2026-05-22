@@ -1,9 +1,34 @@
 package booster
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestRunOptions_AllFilesOnlyValidForPreCommit(t *testing.T) {
+	dir := initBareGitRepo(t)
+
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	writeFile(t, filepath.Join(dir, "booster.toml"), `
+[hooks.commit-msg]
+enabled = true
+`)
+
+	err := RunHookWithOptions("commit-msg", "", RunOptions{AllFiles: true})
+	if err == nil {
+		t.Error("expected error when --all-files used with non-pre-commit hook")
+	}
+	if !strings.Contains(err.Error(), "pre-commit") {
+		t.Errorf("expected error to mention pre-commit, got: %v", err)
+	}
+}
 
 func TestParsePushContext_SingleRef(t *testing.T) {
 	input := "refs/heads/main abc123 refs/heads/main def456\n"

@@ -17,10 +17,23 @@ import (
 var ticketRegex = regexp.MustCompile(`([A-Z]+-[0-9]+)`)
 var conventionalRegex = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: .+`)
 
+// RunOptions controls optional behaviour for a hook run.
+type RunOptions struct {
+	AllFiles bool // run against all tracked files instead of only staged ones
+}
+
 func RunHook(hookName string, editFile string) error {
+	return RunHookWithOptions(hookName, editFile, RunOptions{})
+}
+
+func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error {
 	repoRoot, err := detectRepoRoot()
 	if err != nil {
 		return err
+	}
+
+	if opts.AllFiles && hookName != "pre-commit" {
+		return fmt.Errorf("--all-files is only valid for the pre-commit hook, not %q", hookName)
 	}
 
 	if isHookSkippedEnv(hookName) {
@@ -68,22 +81,29 @@ func RunHook(hookName string, editFile string) error {
 
 	files := []string{}
 	if hookName == "pre-commit" {
-		files, err = stagedFiles(repoRoot)
-		if err != nil {
-			return err
-		}
-		if len(files) == 0 {
-			fmt.Fprintf(UI, "%s\n", dim("no staged files — nothing to run"))
-			return nil
+		if opts.AllFiles {
+			files, err = allTrackedFiles(repoRoot)
+			if err != nil {
+				return err
+			}
+		} else {
+			files, err = stagedFiles(repoRoot)
+			if err != nil {
+				return err
+			}
+			if len(files) == 0 {
+				fmt.Fprintf(UI, "%s\n", dim("no staged files — nothing to run"))
+				return nil
+			}
 		}
 	}
 
-	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files)
+	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files, opts.AllFiles)
 }
 
 // runHookCfg executes all tools in hookCfg for the given root / staged files.
 // This is the inner loop used by both the root hook and workspace members.
-func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string) error {
+func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string, allFiles bool) error {
 	toolNames := sortedToolNames(hookCfg.Tools)
 	if len(toolNames) == 0 {
 		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))
@@ -148,8 +168,12 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		results = append(results, r)
 
 		if tool.Restage && tool.PassFilesEnabled() {
-			if err := addFiles(root, filesToRun); err != nil {
-				return fmt.Errorf("tool %s restage failed: %w", name, err)
+			if allFiles {
+				fmt.Fprintf(UI, "%s\n", yellow("  restage suppressed for "+name+" (--all-files mode)"))
+			} else {
+				if err := addFiles(root, filesToRun); err != nil {
+					return fmt.Errorf("tool %s restage failed: %w", name, err)
+				}
 			}
 		}
 	}
@@ -448,5 +472,5 @@ func runHookCfgWithPushContext(root, hookName string, hookCfg HookConfig, execCf
 		}
 	}
 	// pre-push tools operate on no staged files (pass_files defaults to false)
-	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil)
+	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil, false)
 }

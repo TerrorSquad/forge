@@ -73,3 +73,23 @@ func localHooksPath(repoRoot string) (string, error) {
 	}
 	return out, nil
 }
+
+// allTrackedFiles returns all files tracked by git in the repo (respects .gitignore).
+func allTrackedFiles(repoRoot string) ([]string, error) {
+	out, err := runGit(repoRoot, "ls-files")
+	if err != nil {
+		return nil, err
+	}
+	if out == "" {
+		return []string{}, nil
+	}
+	items := strings.Split(out, "\n")
+	res := make([]string, 0, len(items))
+	for _, v := range items {
+		v = strings.TrimSpace(v)
+		if v != "" {
+			res = append(res, filepath.ToSlash(v))
+		}
+	}
+	return res, nil
+}
