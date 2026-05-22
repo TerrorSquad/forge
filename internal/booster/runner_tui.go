@@ -92,6 +92,15 @@ func runHookCfgTUI(root, hookName string, hookCfg HookConfig, exec ExecutionConf
 
 			backend := ResolveBackend(root, tool, exec.DefaultBackend)
 
+			// Skip tool if its binary is not available.
+			resolvedCmd := resolveCommandForBackend(root, tool, backend)
+			if !toolBinaryAvailable(root, resolvedCmd) {
+				r := ToolResult{Name: name, Status: "skip"}
+				disp.doneTool(r)
+				allResults = append(allResults, r)
+				continue
+			}
+
 			cacheEnabled := !noCache && !checkMode && (tool.Cache || exec.Cache)
 			var cacheKey string
 			if cacheEnabled {
@@ -203,6 +212,15 @@ func runTUIWave(root string, names []string, tools map[string]ToolConfig, files 
 			filesToRun := filterFiles(files, tool)
 			pr.filesToRun = filesToRun
 			backend := ResolveBackend(root, tool, exec.DefaultBackend)
+
+			// Skip tool if its binary is not available.
+			resolvedCmd := resolveCommandForBackend(root, tool, backend)
+			if !toolBinaryAvailable(root, resolvedCmd) {
+				pr.result = ToolResult{Name: toolName, Status: "skip"}
+				disp.doneTool(pr.result)
+				results[idx] = pr
+				return
+			}
 
 			cacheEnabled := !noCache && !checkMode && (tool.Cache || exec.Cache)
 			if cacheEnabled {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // Backend represents an execution environment for tool commands.
@@ -177,4 +178,24 @@ type BackendAvailabilityError struct {
 
 func (e *BackendAvailabilityError) Error() string {
 	return fmt.Sprintf("tool %q not available via backend %q", e.Tool, e.Backend)
+}
+
+// toolBinaryAvailable reports whether the resolved command path is accessible.
+// resolvedCmd may be:
+//   - a relative vendor/bin or node_modules/.bin path (checked relative to repoRoot)
+//   - a plain binary name (checked on system PATH)
+//   - an absolute path
+func toolBinaryAvailable(repoRoot, resolvedCmd string) bool {
+	if filepath.IsAbs(resolvedCmd) {
+		_, err := os.Stat(resolvedCmd)
+		return err == nil
+	}
+	// Relative local binary (vendor/bin/*, node_modules/.bin/*)
+	if strings.Contains(resolvedCmd, "/") {
+		_, err := os.Stat(filepath.Join(repoRoot, resolvedCmd))
+		return err == nil
+	}
+	// System/PATH binary
+	_, err := exec.LookPath(resolvedCmd)
+	return err == nil
 }

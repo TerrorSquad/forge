@@ -192,6 +192,14 @@ func runToolWave(root string, names []string, tools map[string]ToolConfig, files
 
 			backend := ResolveBackend(root, tool, exec.DefaultBackend)
 
+			// Skip tool if its binary is not available.
+			resolvedCmd := resolveCommandForBackend(root, tool, backend)
+			if !toolBinaryAvailable(root, resolvedCmd) {
+				pr.result = ToolResult{Name: toolName, Status: "skip"}
+				results[idx] = pr
+				return
+			}
+
 			cacheEnabled := !noCache && (tool.Cache || exec.Cache)
 			if cacheEnabled && !checkMode {
 				if k, err := toolCacheKey(tool, filesToRun); err == nil {

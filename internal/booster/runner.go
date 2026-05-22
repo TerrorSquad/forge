@@ -182,7 +182,14 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		}
 
 		backend := ResolveBackend(root, tool, exec.DefaultBackend)
-
+		// Skip tool if its binary is not available (mirrors legacy hook behaviour).
+		resolvedCmd := resolveCommandForBackend(root, tool, backend)
+		if !toolBinaryAvailable(root, resolvedCmd) {
+			r := ToolResult{Name: name, Status: "skip"}
+			fmt.Fprintf(UI, "%s\n", dim("  "+name+" skipped (binary not found: "+resolvedCmd+")"))
+			results = append(results, r)
+			continue
+		}
 		// Check run cache.
 		cacheEnabled := !noCache && (tool.Cache || exec.Cache)
 		var cacheKey string
