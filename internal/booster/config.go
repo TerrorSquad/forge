@@ -201,11 +201,13 @@ type ToolConfig struct {
 	OnFailure       string   `toml:"on_failure"`
 	Group           string   `toml:"group"`
 	When            string   `toml:"when"`
+	Timeout         string   `toml:"timeout"` // e.g. "120s", "2m"; empty = use global default
 }
 
 // ExecutionConfig holds repository-wide execution defaults.
 type ExecutionConfig struct {
 	DefaultBackend string `toml:"default_backend"`
+	ToolTimeout    string `toml:"tool_timeout"` // global default, e.g. "300s"; empty = no limit
 }
 
 // WorkspaceConfig defines monorepo member discovery.

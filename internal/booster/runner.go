@@ -3,6 +3,7 @@ package booster
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -148,7 +149,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 
 		backend := ResolveBackend(root, tool, exec.DefaultBackend)
 		start := time.Now()
-		toolOut, err := executeToolCaptured(root, tool, filesToRun, backend)
+		toolOut, err := executeToolCaptured(root, tool, filesToRun, backend, exec)
 		dur := time.Since(start)
 
 		if err != nil {
@@ -190,9 +191,9 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 // executeToolCaptured runs the tool and returns captured combined output on
 // failure. On success the output is discarded (streamed to /dev/null is not
 // quite right — we stream to a buffer and only surface it on error).
-func executeToolCaptured(repoRoot string, tool ToolConfig, files []string, backend Backend) (string, error) {
+func executeToolCaptured(repoRoot string, tool ToolConfig, files []string, backend Backend, execCfg ExecutionConfig) (string, error) {
 	var buf bytes.Buffer
-	err := executeToolWithWriter(repoRoot, tool, files, backend, &buf)
+	err := executeToolWithContext(repoRoot, tool, files, backend, execCfg, &buf)
 	if err != nil {
 		return buf.String(), err
 	}
@@ -254,12 +255,50 @@ func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, edit
 	return nil
 }
 
-func executeTool(repoRoot string, tool ToolConfig, files []string, backend Backend) error {
-	_, err := executeToolCaptured(repoRoot, tool, files, backend)
+func executeTool(repoRoot string, tool ToolConfig, files []string, backend Backend, execCfg ExecutionConfig) error {
+	_, err := executeToolCaptured(repoRoot, tool, files, backend, execCfg)
 	return err
 }
 
-func executeToolWithWriter(repoRoot string, tool ToolConfig, files []string, backend Backend, w io.Writer) error {
+// executeToolWithContext runs the tool with an optional timeout derived from execCfg.
+func executeToolWithContext(repoRoot string, tool ToolConfig, files []string, backend Backend, execCfg ExecutionConfig, w io.Writer) error {
+	ctx, cancel := buildToolContext(tool, execCfg)
+	defer cancel()
+
+	err := executeToolWithWriter(repoRoot, tool, files, backend, w, ctx)
+	if err != nil && ctx.Err() != nil {
+		d := resolveToolTimeout(tool, execCfg)
+		return fmt.Errorf("timed out after %s", d.Round(time.Millisecond))
+	}
+	return err
+}
+
+// resolveToolTimeout returns the effective timeout for a tool; 0 means no limit.
+func resolveToolTimeout(tool ToolConfig, execCfg ExecutionConfig) time.Duration {
+	s := tool.Timeout
+	if s == "" {
+		s = execCfg.ToolTimeout
+	}
+	if s == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil || d <= 0 {
+		return 0
+	}
+	return d
+}
+
+// buildToolContext returns a context (and cancel) for the tool's timeout.
+func buildToolContext(tool ToolConfig, execCfg ExecutionConfig) (context.Context, context.CancelFunc) {
+	d := resolveToolTimeout(tool, execCfg)
+	if d <= 0 {
+		return context.Background(), func() {}
+	}
+	return context.WithTimeout(context.Background(), d)
+}
+
+func executeToolWithWriter(repoRoot string, tool ToolConfig, files []string, backend Backend, w io.Writer, ctx context.Context) error {
 	cmd := resolveCommandForBackend(repoRoot, tool, backend)
 	if tool.RunPerFile {
 		for _, file := range files {
@@ -267,7 +306,7 @@ func executeToolWithWriter(repoRoot string, tool ToolConfig, files []string, bac
 			if tool.PassFilesEnabled() {
 				args = append(args, file)
 			}
-			if err := backend.ExecWithWriter(repoRoot, append([]string{cmd}, args...), w); err != nil {
+			if err := backend.ExecWithContext(ctx, repoRoot, append([]string{cmd}, args...), w); err != nil {
 				return err
 			}
 		}
@@ -278,7 +317,7 @@ func executeToolWithWriter(repoRoot string, tool ToolConfig, files []string, bac
 	if tool.PassFilesEnabled() {
 		args = append(args, files...)
 	}
-	return backend.ExecWithWriter(repoRoot, append([]string{cmd}, args...), w)
+	return backend.ExecWithContext(ctx, repoRoot, append([]string{cmd}, args...), w)
 }
 
 func filterFiles(files []string, tool ToolConfig) []string {

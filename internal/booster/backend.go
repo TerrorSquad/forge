@@ -2,6 +2,7 @@ package booster
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +18,8 @@ type Backend interface {
 	Exec(dir string, cmd []string) error
 	// ExecWithWriter runs cmd with args, writing combined stdout+stderr to w.
 	ExecWithWriter(dir string, cmd []string, w io.Writer) error
+	// ExecWithContext runs cmd with args (respecting ctx cancellation), writing to w when non-nil.
+	ExecWithContext(ctx context.Context, dir string, cmd []string, w io.Writer) error
 	// BinaryExists checks whether the named binary is available in this backend.
 	BinaryExists(dir, binary string) bool
 }
@@ -31,7 +34,11 @@ func (b *HostBackend) Exec(dir string, cmd []string) error {
 }
 
 func (b *HostBackend) ExecWithWriter(dir string, cmd []string, w io.Writer) error {
-	c := exec.Command(cmd[0], cmd[1:]...)
+	return b.ExecWithContext(context.Background(), dir, cmd, w)
+}
+
+func (b *HostBackend) ExecWithContext(ctx context.Context, dir string, cmd []string, w io.Writer) error {
+	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 	c.Dir = dir
 	if w != nil {
 		c.Stdout = w
@@ -69,8 +76,12 @@ func (b *DdevBackend) Exec(dir string, cmd []string) error {
 }
 
 func (b *DdevBackend) ExecWithWriter(dir string, cmd []string, w io.Writer) error {
+	return b.ExecWithContext(context.Background(), dir, cmd, w)
+}
+
+func (b *DdevBackend) ExecWithContext(ctx context.Context, dir string, cmd []string, w io.Writer) error {
 	ddevCmd := append([]string{"ddev", "exec", "--"}, cmd...)
-	c := exec.Command(ddevCmd[0], ddevCmd[1:]...)
+	c := exec.CommandContext(ctx, ddevCmd[0], ddevCmd[1:]...)
 	c.Dir = dir
 	if w != nil {
 		c.Stdout = w

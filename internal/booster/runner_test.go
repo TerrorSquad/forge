@@ -5,7 +5,49 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestResolveToolTimeout_PerTool(t *testing.T) {
+	tool := ToolConfig{Timeout: "30s"}
+	d := resolveToolTimeout(tool, ExecutionConfig{})
+	if d != 30*time.Second {
+		t.Errorf("got %v, want 30s", d)
+	}
+}
+
+func TestResolveToolTimeout_GlobalFallback(t *testing.T) {
+	tool := ToolConfig{}
+	execCfg := ExecutionConfig{ToolTimeout: "60s"}
+	d := resolveToolTimeout(tool, execCfg)
+	if d != 60*time.Second {
+		t.Errorf("got %v, want 60s", d)
+	}
+}
+
+func TestResolveToolTimeout_PerToolOverridesGlobal(t *testing.T) {
+	tool := ToolConfig{Timeout: "10s"}
+	execCfg := ExecutionConfig{ToolTimeout: "300s"}
+	d := resolveToolTimeout(tool, execCfg)
+	if d != 10*time.Second {
+		t.Errorf("got %v, want 10s", d)
+	}
+}
+
+func TestResolveToolTimeout_Empty(t *testing.T) {
+	d := resolveToolTimeout(ToolConfig{}, ExecutionConfig{})
+	if d != 0 {
+		t.Errorf("empty timeout should be 0, got %v", d)
+	}
+}
+
+func TestResolveToolTimeout_InvalidString(t *testing.T) {
+	tool := ToolConfig{Timeout: "notaduration"}
+	d := resolveToolTimeout(tool, ExecutionConfig{})
+	if d != 0 {
+		t.Errorf("invalid duration string should yield 0, got %v", d)
+	}
+}
 
 func TestRunOptions_AllFilesOnlyValidForPreCommit(t *testing.T) {
 	dir := initBareGitRepo(t)
