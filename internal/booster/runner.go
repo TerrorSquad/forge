@@ -123,6 +123,9 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		return runHookCfgParallel(root, hookName, hookCfg, exec, files, allFiles, noCache, checkMode)
 	}
 	toolNames := sortedToolNames(hookCfg.Tools)
+	if isTUIMode(len(toolNames)) {
+		return runHookCfgTUI(root, hookName, hookCfg, exec, files, allFiles, noCache, checkMode)
+	}
 	if len(toolNames) == 0 {
 		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))
 		return nil
