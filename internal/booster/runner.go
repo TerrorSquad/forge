@@ -89,6 +89,11 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 		return runHookCfgWithPushContext(repoRoot, hookName, hookCfg, cfg.Execution, pushCtx)
 	}
 
+	if hookName == "post-commit" {
+		fmt.Fprintf(UI, "%s\n", dim("post-commit: informational — commit already saved"))
+		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, false, opts.NoCache, opts.CheckMode)
+	}
+
 	files := []string{}
 	if hookName == "pre-commit" {
 		if opts.AllFiles {

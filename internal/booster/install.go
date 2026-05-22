@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var supportedHooks = []string{"pre-commit", "commit-msg", "pre-push", "prepare-commit-msg"}
+var supportedHooks = []string{"pre-commit", "commit-msg", "pre-push", "prepare-commit-msg", "post-commit"}
 
 func InstallHooks() error {
 	repoRoot, err := detectRepoRoot()
