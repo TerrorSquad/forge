@@ -198,6 +198,15 @@
         "show_output": {
           "type": "boolean",
           "description": "Print the tool's stdout/stderr even on success. Useful for test runners where you want to see pass/fail counts and summary output after every run."
+        },
+        "env": {
+          "type": "object",
+          "description": "Extra environment variables injected only for this tool's process. Merged on top of the parent process environment. Useful for setting memory limits, disabling colours, or passing secrets without polluting the global shell environment.",
+          "additionalProperties": { "type": "string" },
+          "examples": [
+            { "PHPSTAN_MEMORY_LIMIT": "512M" },
+            { "NODE_ENV": "production", "CI": "1" }
+          ]
         }
       }
     },

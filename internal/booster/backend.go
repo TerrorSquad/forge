@@ -20,7 +20,8 @@ type Backend interface {
 	// ExecWithWriter runs cmd with args, writing combined stdout+stderr to w.
 	ExecWithWriter(dir string, cmd []string, w io.Writer) error
 	// ExecWithContext runs cmd with args (respecting ctx cancellation), writing to w when non-nil.
-	ExecWithContext(ctx context.Context, dir string, cmd []string, w io.Writer) error
+	// env contains additional environment variables merged on top of the parent process env; nil means inherit unchanged.
+	ExecWithContext(ctx context.Context, dir string, cmd []string, env map[string]string, w io.Writer) error
 	// BinaryExists checks whether the named binary is available in this backend.
 	BinaryExists(dir, binary string) bool
 }
@@ -35,12 +36,18 @@ func (b *HostBackend) Exec(dir string, cmd []string) error {
 }
 
 func (b *HostBackend) ExecWithWriter(dir string, cmd []string, w io.Writer) error {
-	return b.ExecWithContext(context.Background(), dir, cmd, w)
+	return b.ExecWithContext(context.Background(), dir, cmd, nil, w)
 }
 
-func (b *HostBackend) ExecWithContext(ctx context.Context, dir string, cmd []string, w io.Writer) error {
+func (b *HostBackend) ExecWithContext(ctx context.Context, dir string, cmd []string, env map[string]string, w io.Writer) error {
 	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 	c.Dir = dir
+	if len(env) > 0 {
+		c.Env = os.Environ()
+		for k, v := range env {
+			c.Env = append(c.Env, k+"="+v)
+		}
+	}
 	if w != nil {
 		c.Stdout = w
 		c.Stderr = w
@@ -77,11 +84,16 @@ func (b *DdevBackend) Exec(dir string, cmd []string) error {
 }
 
 func (b *DdevBackend) ExecWithWriter(dir string, cmd []string, w io.Writer) error {
-	return b.ExecWithContext(context.Background(), dir, cmd, w)
+	return b.ExecWithContext(context.Background(), dir, cmd, nil, w)
 }
 
-func (b *DdevBackend) ExecWithContext(ctx context.Context, dir string, cmd []string, w io.Writer) error {
-	ddevCmd := append([]string{"ddev", "exec", "--"}, cmd...)
+func (b *DdevBackend) ExecWithContext(ctx context.Context, dir string, cmd []string, env map[string]string, w io.Writer) error {
+	ddevArgs := []string{"ddev", "exec"}
+	for k, v := range env {
+		ddevArgs = append(ddevArgs, "--env", k+"="+v)
+	}
+	ddevArgs = append(ddevArgs, "--")
+	ddevCmd := append(ddevArgs, cmd...)
 	c := exec.CommandContext(ctx, ddevCmd[0], ddevCmd[1:]...)
 	c.Dir = dir
 	if w != nil {

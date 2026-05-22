@@ -87,6 +87,8 @@ func Run(args []string) int {
 		return listCommand()
 	case "ci":
 		return ciCommand()
+	case "validate":
+		return validateCommand()
 	case "run":
 		return runCommand(args[1:])
 	case "migrate":
@@ -147,6 +149,29 @@ func runCommand(args []string) int {
 	return 0
 }
 
+func validateCommand() int {
+	repoRoot, err := detectRepoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "validate: %v\n", err)
+		return 1
+	}
+	cfg, _, err := LoadConfig(repoRoot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "validate: %v\n", err)
+		return 1
+	}
+	issues := ValidateConfig(cfg)
+	if len(issues) == 0 {
+		fmt.Fprintf(UI, "%s booster.toml is valid\n", green("✓"))
+		return 0
+	}
+	hasError := PrintValidationIssues(issues)
+	if hasError {
+		return 1
+	}
+	return 0
+}
+
 func migrateCommand(args []string) int {
 	fs := flag.NewFlagSet("migrate", flag.ContinueOnError)
 	from := fs.String("from", "", "path to .git-hooks.config.json (auto-detected if omitted)")
@@ -170,6 +195,7 @@ Usage:
   booster uninstall
   booster run <hook> [--edit FILE] [--all-files] [--check] [--no-cache]
                      [--tool NAMES] [--group NAMES] [--skip-tool NAMES]
+  booster validate
   booster list
   booster ci
   booster migrate [--from FILE] [--to FILE]

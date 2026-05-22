@@ -56,6 +56,11 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 		return err
 	}
 
+	// Emit validation warnings (non-blocking) so developers see config issues early.
+	if issues := ValidateConfig(cfg); len(issues) > 0 {
+		PrintValidationIssues(issues)
+	}
+
 	hookCfg, ok := cfg.Hooks[hookName]
 	if !ok || !hookCfg.IsEnabled() {
 		// Silently exit — no config = nothing to do.
@@ -516,7 +521,7 @@ func executeToolWithWriter(repoRoot string, tool ToolConfig, files []string, bac
 			if tool.PassFilesEnabled() {
 				args = append(args, file)
 			}
-			if err := backend.ExecWithContext(ctx, repoRoot, append([]string{cmd}, args...), w); err != nil {
+			if err := backend.ExecWithContext(ctx, repoRoot, append([]string{cmd}, args...), tool.Env, w); err != nil {
 				return err
 			}
 		}
@@ -527,7 +532,7 @@ func executeToolWithWriter(repoRoot string, tool ToolConfig, files []string, bac
 	if tool.PassFilesEnabled() {
 		args = append(args, files...)
 	}
-	return backend.ExecWithContext(ctx, repoRoot, append([]string{cmd}, args...), w)
+	return backend.ExecWithContext(ctx, repoRoot, append([]string{cmd}, args...), tool.Env, w)
 }
 
 func filterFiles(files []string, tool ToolConfig) []string {
