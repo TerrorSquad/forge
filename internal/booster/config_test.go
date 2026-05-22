@@ -248,3 +248,112 @@ func TestListPresets_ContainsExpected(t *testing.T) {
 		t.Errorf("missing presets: %v", want)
 	}
 }
+
+func TestGlobalConfigPath_EnvOverride(t *testing.T) {
+	t.Setenv("BOOSTER_GLOBAL_CONFIG", "/tmp/my-global-booster.toml")
+	got := globalConfigPath()
+	if got != "/tmp/my-global-booster.toml" {
+		t.Errorf("expected env override, got %s", got)
+	}
+}
+
+func TestGlobalConfigPath_XDGDefault(t *testing.T) {
+	t.Setenv("BOOSTER_GLOBAL_CONFIG", "")
+	t.Setenv("XDG_CONFIG_HOME", "/custom/xdg")
+	got := globalConfigPath()
+	if got != "/custom/xdg/booster/config.toml" {
+		t.Errorf("expected XDG path, got %s", got)
+	}
+}
+
+func TestLoadGlobalConfig_Missing(t *testing.T) {
+	t.Setenv("BOOSTER_GLOBAL_CONFIG", "/tmp/nonexistent-booster-global-xyz.toml")
+	cfg, err := loadGlobalConfig()
+	if err != nil {
+		t.Errorf("missing global config should not error, got: %v", err)
+	}
+	if cfg != nil {
+		t.Error("missing global config should return nil")
+	}
+}
+
+func TestLoadGlobalConfig_Valid(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "config.toml")
+	writeFile(t, p, `
+[execution]
+default_backend = "host"
+tool_timeout = "90s"
+`)
+	t.Setenv("BOOSTER_GLOBAL_CONFIG", p)
+	cfg, err := loadGlobalConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("expected non-nil config")
+	}
+	if cfg.Execution.DefaultBackend != "host" {
+		t.Errorf("expected default_backend=host, got %s", cfg.Execution.DefaultBackend)
+	}
+}
+
+func TestMergeGlobalConfig_ExecutionFallback(t *testing.T) {
+	global := &Config{
+		Execution: ExecutionConfig{DefaultBackend: "host", ToolTimeout: "90s"},
+	}
+	repo := &Config{
+		Hooks:     map[string]HookConfig{},
+		Execution: ExecutionConfig{},
+	}
+	mergeGlobalConfig(global, repo)
+	if repo.Execution.DefaultBackend != "host" {
+		t.Errorf("expected fallback to global default_backend, got %s", repo.Execution.DefaultBackend)
+	}
+	if repo.Execution.ToolTimeout != "90s" {
+		t.Errorf("expected fallback to global tool_timeout, got %s", repo.Execution.ToolTimeout)
+	}
+}
+
+func TestMergeGlobalConfig_RepoWins(t *testing.T) {
+	global := &Config{
+		Execution: ExecutionConfig{DefaultBackend: "ddev", ToolTimeout: "30s"},
+	}
+	repo := &Config{
+		Hooks:     map[string]HookConfig{},
+		Execution: ExecutionConfig{DefaultBackend: "host", ToolTimeout: "60s"},
+	}
+	mergeGlobalConfig(global, repo)
+	if repo.Execution.DefaultBackend != "host" {
+		t.Errorf("repo should win, got %s", repo.Execution.DefaultBackend)
+	}
+}
+
+func TestMergeGlobalConfig_ToolsMerged(t *testing.T) {
+	global := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-commit": {
+				Tools: map[string]ToolConfig{
+					"my-global-tool": {Command: "global-check"},
+				},
+			},
+		},
+	}
+	repo := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-commit": {
+				Tools: map[string]ToolConfig{
+					"repo-tool": {Command: "repo-check"},
+				},
+			},
+		},
+	}
+	mergeGlobalConfig(global, repo)
+	hook := repo.Hooks["pre-commit"]
+	if _, ok := hook.Tools["my-global-tool"]; !ok {
+		t.Error("global tool should have been merged into repo hook")
+	}
+	if _, ok := hook.Tools["repo-tool"]; !ok {
+		t.Error("repo tool should still be present")
+	}
+}

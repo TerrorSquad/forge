@@ -285,10 +285,89 @@ func LoadConfig(repoRoot string) (*Config, string, error) {
 			cfg.Hooks = map[string]HookConfig{}
 		}
 
+		// Merge global config under repo config (repo wins on conflict).
+		if global, err := loadGlobalConfig(); err == nil && global != nil {
+			mergeGlobalConfig(global, &cfg)
+		}
+
 		return &cfg, p, nil
 	}
 
 	return nil, "", fmt.Errorf("no config found; run 'booster init' to create booster.toml")
+}
+
+// globalConfigPath returns the path to the user-level global config.
+// Override with BOOSTER_GLOBAL_CONFIG env var.
+func globalConfigPath() string {
+	if v := os.Getenv("BOOSTER_GLOBAL_CONFIG"); v != "" {
+		return v
+	}
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		home, _ := os.UserHomeDir()
+		base = filepath.Join(home, ".config")
+	}
+	return filepath.Join(base, "booster", "config.toml")
+}
+
+// loadGlobalConfig loads the user-level config; returns nil if it doesn't exist.
+// A parse error produces a warning but is not fatal.
+func loadGlobalConfig() (*Config, error) {
+	p := globalConfigPath()
+	data, err := os.ReadFile(p)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var cfg Config
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: invalid global config at %s: %v\n", p, err)
+		return nil, nil
+	}
+	if cfg.Hooks == nil {
+		cfg.Hooks = map[string]HookConfig{}
+	}
+	return &cfg, nil
+}
+
+// mergeGlobalConfig merges global (user) config into repo config.
+// Repo values always win. Only execution scalars and per-hook tools/policy are merged.
+func mergeGlobalConfig(global, repo *Config) {
+	// Execution scalars: only fill if repo has empty value.
+	if repo.Execution.DefaultBackend == "" {
+		repo.Execution.DefaultBackend = global.Execution.DefaultBackend
+	}
+	if repo.Execution.ToolTimeout == "" {
+		repo.Execution.ToolTimeout = global.Execution.ToolTimeout
+	}
+
+	// Hooks: merge tools and policy from global if hook exists in repo.
+	for hookName, globalHook := range global.Hooks {
+		repoHook, exists := repo.Hooks[hookName]
+		if !exists {
+			continue // only merge into hooks that exist in repo config
+		}
+
+		// Merge tools: global tools not present in repo are added.
+		if repoHook.Tools == nil {
+			repoHook.Tools = map[string]ToolConfig{}
+		}
+		for toolName, globalTool := range globalHook.Tools {
+			if _, ok := repoHook.Tools[toolName]; !ok {
+				repoHook.Tools[toolName] = globalTool
+			}
+		}
+
+		// Merge policy: fill zero-value fields from global.
+		if globalHook.Policy != nil && repoHook.Policy == nil {
+			p := *globalHook.Policy
+			repoHook.Policy = &p
+		}
+
+		repo.Hooks[hookName] = repoHook
+	}
 }
 
 func sortedToolNames(tools map[string]ToolConfig) []string {

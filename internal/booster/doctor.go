@@ -30,6 +30,14 @@ func DoctorWithOptions(opts DoctorOptions) error {
 	}
 	fmt.Printf("git repo root: %s\n", repoRoot)
 
+	// Global config
+	globalPath := globalConfigPath()
+	if _, err := os.Stat(globalPath); err == nil {
+		fmt.Printf("global config: %s\n", globalPath)
+	} else {
+		fmt.Printf("global config: not found (%s)\n", globalPath)
+	}
+
 	cfg, cfgPath, cfgErr := LoadConfig(repoRoot)
 	if cfgErr != nil {
 		fmt.Printf("config: missing (%v)\n", cfgErr)
