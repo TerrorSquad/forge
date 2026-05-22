@@ -94,6 +94,16 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, false, opts.NoCache, opts.CheckMode)
 	}
 
+	if hookName == "post-merge" {
+		fmt.Fprintf(UI, "%s\n", dim("post-merge: informational — merge already complete"))
+		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, false, opts.NoCache, opts.CheckMode)
+	}
+
+	if hookName == "post-rewrite" {
+		fmt.Fprintf(UI, "%s\n", dim("post-rewrite: informational — rewrite already complete (source: "+editFile+")"))
+		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, false, opts.NoCache, opts.CheckMode)
+	}
+
 	files := []string{}
 	if hookName == "pre-commit" {
 		if opts.AllFiles {

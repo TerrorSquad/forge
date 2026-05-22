@@ -21,7 +21,7 @@ func TestInstall_CreatesHookShims(t *testing.T) {
 		t.Fatalf("InstallHooks: %v", err)
 	}
 
-	for _, hook := range []string{"pre-commit", "commit-msg", "pre-push", "prepare-commit-msg", "post-commit"} {
+	for _, hook := range []string{"pre-commit", "commit-msg", "pre-push", "prepare-commit-msg", "post-commit", "post-merge", "post-rewrite"} {
 		shimPath := filepath.Join(dir, ".booster", "hooks", hook)
 		data, err := os.ReadFile(shimPath)
 		if err != nil {
