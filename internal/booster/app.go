@@ -59,6 +59,18 @@ func Run(args []string) int {
 			return 1
 		}
 		return 0
+	case "completion":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "usage: booster completion <bash|zsh|fish>")
+			return 2
+		}
+		script, err := GenerateCompletion(args[1])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "completion failed: %v\n", err)
+			return 1
+		}
+		fmt.Print(script)
+		return 0
 	case "run":
 		return runCommand(args[1:])
 	case "migrate":
