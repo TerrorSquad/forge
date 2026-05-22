@@ -30,6 +30,25 @@ Track implementation progress for all booster features.
 | [013](specs/feature-013-presets-and-init.md) | Presets and `booster init` Improvements | ✅ Done | P2 | `--preset` flag + `--list-presets`; built-in presets: `node`, `php`, `php-node`, `go`, `minimal` |
 | [014](specs/feature-014-release-distribution.md) | Release and Distribution | ✅ Done | P1 | `.goreleaser.yaml` (multi-platform), CI workflow, release workflow, `install.sh`, `booster version` |
 
+## v2 Features
+
+| # | Feature | Status | Priority | Notes |
+|---|---------|--------|----------|-------|
+| [015](specs/feature-015-parallel-execution.md) | Parallel Execution | 🔲 Not Started | P2 | `[execution] parallel = true`; goroutine pool, ordered output |
+| [016](specs/feature-016-pre-push-runner.md) | Pre-Push Runner | ✅ Done | P1 | Push context parsed from stdin; `BOOSTER_PUSH_REMOTE`/`URL` env vars injected |
+| [017](specs/feature-017-colored-output-timing.md) | Colored Output and Timing | ✅ Done | P2 | ANSI color, per-tool duration, summary line |
+| [018](specs/feature-018-all-files-flag.md) | `--all-files` Flag | ✅ Done | P2 | `booster run pre-commit --all-files`; uses `git ls-files`; suppresses restage |
+| [019](specs/feature-019-per-tool-timeout.md) | Per-Tool Timeout | ✅ Done | P2 | `timeout = "120s"` per tool; `[execution] tool_timeout` global default; context cancellation |
+| [020](specs/feature-020-shell-completions.md) | Shell Completions | ✅ Done | P3 | `booster completion bash\|zsh\|fish`; subcommands, flags, hooks, presets |
+| [021](specs/feature-021-prepare-commit-msg.md) | `prepare-commit-msg` Hook | ✅ Done | P2 | Ticket prefix from branch; `skip_on_merge`, `skip_if_present` |
+| [022](specs/feature-022-doctor-fix.md) | `doctor --fix` | ✅ Done | P2 | Auto-reinstalls shims, sets `core.hooksPath`; `--dry-run` support |
+| [023](specs/feature-023-global-user-config.md) | Global User Config | ✅ Done | P2 | `~/.config/booster/config.toml` (XDG); merge semantics — repo wins |
+| [024](specs/feature-024-run-cache.md) | Run Cache | ✅ Done | P2 | SHA-256 content-addressed cache in `.booster/cache.json`; per-tool or global `cache = true`; `booster cache clear`; `--no-cache` flag |
+| [025](specs/feature-025-remote-presets.md) | Remote Presets | 🔄 In Progress | P3 | `--preset https://...`; HTTPS-only; TOML validation; `--yes`/`CI=true` skip prompt |
+| [026](specs/feature-026-check-dry-run.md) | `--check` Dry-Run Mode | 🔲 Not Started | P3 | `booster run pre-commit --check`; uses `check_args`; no restage |
+| [027](specs/feature-027-post-commit.md) | `post-commit` Hook | 🔲 Not Started | P3 | Informational only; failures don't block |
+| [028](specs/feature-028-tui-progress.md) | TUI Progress | ⏸ Deferred | P4 | Bubble Tea live progress bars; deferred |
+
 ---
 
 ## Quick Status Summary
@@ -38,7 +57,8 @@ Track implementation progress for all booster features.
 |-----------|----------|------|----------|
 | v1 core   | 001–009  | 9/9  | ✅ Complete |
 | v1.x      | 010–014  | 5/5  | ✅ Complete |
-| **Total** | **14**   | **14**| **100%** |
+| v2        | 015–028  | 10/14 | 🔄 71% |
+| **Total** | **28**   | **24** | **86%** |
 
 ---
 
@@ -51,3 +71,7 @@ Track implementation progress for all booster features.
 | 2026-05-22 | Sequential tool execution in v1; parallel scheduler deferred to v2 |
 | 2026-05-22 | Skip variables are runtime-only env vars; never persisted in config |
 | 2026-05-22 | TOML-only config in v1; JSON/YAML support deferred |
+| 2026-05-22 | Run cache is content-addressed (SHA-256 of tool config + file hashes); atomic writes via temp+rename |
+| 2026-05-22 | Global user config merges at execution scalars and per-hook tool maps only; workspace config excluded from merge |
+| 2026-05-22 | Remote presets require `https://` only; content validated as TOML before writing; CI env or `--yes` skips prompt |
+| 2026-05-22 | Feature 029 (booster publish) removed from scope — not needed |
