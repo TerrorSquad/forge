@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 )
 
 func Run(args []string) int {
@@ -109,6 +110,9 @@ func runCommand(args []string) int {
 	allFiles := fs.Bool("all-files", false, "run against all tracked files (pre-commit only)")
 	noCache := fs.Bool("no-cache", false, "bypass run cache for this invocation")
 	checkMode := fs.Bool("check", false, "dry-run mode: use check_args, suppress restage, treat output as failure")
+	tool := fs.String("tool", "", "only run these tools, comma-separated (e.g. phpstan,psalm)")
+	group := fs.String("group", "", "only run tools in this group, comma-separated")
+	skipTool := fs.String("skip-tool", "", "skip these tools by name, comma-separated")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
 	}
@@ -120,7 +124,14 @@ func runCommand(args []string) int {
 		}
 	}
 
-	opts := RunOptions{AllFiles: *allFiles, NoCache: *noCache, CheckMode: *checkMode}
+	opts := RunOptions{
+		AllFiles:   *allFiles,
+		NoCache:    *noCache,
+		CheckMode:  *checkMode,
+		OnlyTools:  splitCSV(*tool),
+		OnlyGroups: splitCSV(*group),
+		SkipTools:  splitCSV(*skipTool),
+	}
 	// Capture second positional arg as source (used by prepare-commit-msg)
 	if extra := fs.Args(); len(extra) > 1 {
 		opts.Source = extra[1]
@@ -158,12 +169,22 @@ Usage:
   booster install
   booster uninstall
   booster run <hook> [--edit FILE] [--all-files] [--check] [--no-cache]
+                     [--tool NAMES] [--group NAMES] [--skip-tool NAMES]
   booster list
   booster ci
   booster migrate [--from FILE] [--to FILE]
   booster doctor [--fix] [--dry-run]
   booster cache clear
   booster completion <bash|zsh|fish>
+
+Run flags:
+  --tool phpstan,psalm       only run the named tools
+  --group analysis           only run tools in this group
+  --skip-tool psalm          run everything except the named tools
+
+Env vars:
+  SKIP_<TOOL>=1              skip a specific tool (e.g. SKIP_PHPSTAN=1)
+  SKIP_GROUP_<GROUP>=1       skip an entire group (e.g. SKIP_GROUP_ANALYSIS=1)
 
 Presets:
   node, php, php-node, go, minimal
@@ -172,10 +193,28 @@ Examples:
   booster init --preset go
   booster install
   booster run pre-commit
+  booster run pre-commit --tool phpstan
+  booster run pre-commit --group analysis --all-files
+  booster run pre-commit --skip-tool psalm
   booster run pre-commit --check --all-files
   booster list
   booster ci
   booster cache clear`)
+}
+
+func splitCSV(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func cacheCommand(args []string) int {

@@ -20,10 +20,13 @@ var conventionalRegex = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|
 
 // RunOptions controls optional behaviour for a hook run.
 type RunOptions struct {
-	AllFiles  bool   // run against all tracked files instead of only staged ones
-	Source    string // git source arg for prepare-commit-msg (merge, squash, ...)
-	NoCache   bool   // bypass run cache for this invocation
-	CheckMode bool   // dry-run: use check_args, suppress restage, treat output as failure
+	AllFiles   bool     // run against all tracked files instead of only staged ones
+	Source     string   // git source arg for prepare-commit-msg (merge, squash, ...)
+	NoCache    bool     // bypass run cache for this invocation
+	CheckMode  bool     // dry-run: use check_args, suppress restage, treat output as failure
+	OnlyTools  []string // if non-empty, run only these tool names
+	OnlyGroups []string // if non-empty, run only tools whose group matches
+	SkipTools  []string // skip these tools by name (additive to SKIP_* env)
 }
 
 func RunHook(hookName string, editFile string) error {
@@ -94,15 +97,15 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 	}
 
 	if hookName == "post-commit" {
-		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, false, opts.NoCache, opts.CheckMode)
+		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, opts)
 	}
 
 	if hookName == "post-merge" {
-		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, false, opts.NoCache, opts.CheckMode)
+		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, opts)
 	}
 
 	if hookName == "post-rewrite" {
-		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, false, opts.NoCache, opts.CheckMode)
+		return runHookCfg(repoRoot, hookName, "", hookCfg, cfg.Execution, nil, opts)
 	}
 
 	files := []string{}
@@ -122,24 +125,45 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 				return nil
 			}
 		}
+
+		// Safe stash: protect unstaged changes from fixers that modify files in place.
+		// Activated automatically when any configured tool has restage=true, unless
+		// [hooks.pre-commit] safe_stash = false explicitly opts out.
+		if safeStashEnabled(hookCfg) && !opts.AllFiles && !opts.CheckMode {
+			_, stashed, stashErr := stashUnstagedChanges(repoRoot)
+			if stashErr != nil {
+				fmt.Fprintf(UI, "%s\n", yellow("⚠ stash failed: "+stashErr.Error()+" — proceeding without stash"))
+			} else if stashed {
+				fmt.Fprintf(UI, "  %s\n", dim("⬇  stashing unstaged changes..."))
+				defer func() {
+					fmt.Fprintf(UI, "  %s\n", dim("⬆  restoring unstaged changes..."))
+					if popErr := popStash(repoRoot); popErr != nil {
+						fmt.Fprintf(UI, "%s\n", yellow("⚠ "+popErr.Error()))
+					}
+				}()
+			}
+		}
 	}
 
-	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files, opts.AllFiles, opts.NoCache, opts.CheckMode)
+	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files, opts)
 }
 
 // runHookCfg executes all tools in hookCfg for the given root / staged files.
 // This is the inner loop used by both the root hook and workspace members.
-func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string, allFiles, noCache, checkMode bool) error {
+func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string, opts RunOptions) error {
+	allFiles := opts.AllFiles
+	noCache := opts.NoCache
+	checkMode := opts.CheckMode
 	if isParallelMode(hookCfg, exec) {
-		return runHookCfgParallel(root, hookName, hookCfg, exec, files, allFiles, noCache, checkMode)
+		return runHookCfgParallel(root, hookName, hookCfg, exec, files, opts)
 	}
-	toolNames := sortedToolNames(hookCfg.Tools)
+	toolNames := applyToolFilter(sortedToolNames(hookCfg.Tools), hookCfg.Tools, opts)
 	if len(toolNames) == 0 {
 		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))
 		return nil
 	}
 
-	PrintHookHeader(hookName)
+	PrintHookHeaderCI(hookName)
 
 	allowedGroups := parseAllowedGroups()
 	var results []ToolResult
@@ -154,6 +178,12 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		tool := hookCfg.Tools[name]
 
 		if shouldSkipTool(name) {
+			r := ToolResult{Name: name, Status: "skip"}
+			PrintToolResult(r)
+			results = append(results, r)
+			continue
+		}
+		if shouldSkipGroup(tool.Group) {
 			r := ToolResult{Name: name, Status: "skip"}
 			PrintToolResult(r)
 			results = append(results, r)
@@ -272,11 +302,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		}
 	}
 
-	if checkMode {
-		PrintCheckSummary(results, time.Since(hookStart))
-	} else {
-		PrintSummary(results, time.Since(hookStart))
-	}
+	PrintSummaryCI(results, time.Since(hookStart), checkMode)
 
 	if cacheUpdated {
 		saveCache(root, tc)
@@ -618,9 +644,88 @@ func loadEnvFiles(repoRoot string) {
 	}
 }
 
+// safeStashEnabled returns true when the stash protection should be activated
+// for the given pre-commit hook config. Activated automatically when any tool
+// has restage=true, unless safe_stash is explicitly set to false.
+func safeStashEnabled(hookCfg HookConfig) bool {
+	if hookCfg.SafeStash != nil {
+		return *hookCfg.SafeStash
+	}
+	// Auto-detect: enable when any tool has restage=true.
+	for _, tool := range hookCfg.Tools {
+		if tool.Restage {
+			return true
+		}
+	}
+	return false
+}
+
 func shouldSkipTool(name string) bool {
 	key := "SKIP_" + sanitizeEnvKey(name)
 	return isTruthy(os.Getenv(key))
+}
+
+func shouldSkipGroup(group string) bool {
+	if group == "" {
+		return false
+	}
+	key := "SKIP_GROUP_" + sanitizeEnvKey(group)
+	return isTruthy(os.Getenv(key))
+}
+
+// applyToolFilter filters toolNames according to OnlyTools/OnlyGroups/SkipTools in opts.
+// When all filter slices are empty, the original list is returned unchanged.
+func applyToolFilter(toolNames []string, tools map[string]ToolConfig, opts RunOptions) []string {
+	if len(opts.OnlyTools) == 0 && len(opts.OnlyGroups) == 0 && len(opts.SkipTools) == 0 {
+		return toolNames
+	}
+	onlyToolSet := setOf(opts.OnlyTools)
+	onlyGroupSet := setOf(opts.OnlyGroups)
+	skipToolSet := setOf(opts.SkipTools)
+
+	filtered := make([]string, 0, len(toolNames))
+	for _, name := range toolNames {
+		if skipToolSet[name] {
+			continue
+		}
+		tool := tools[name]
+		if len(onlyToolSet) > 0 && !onlyToolSet[name] {
+			// Check depends_on: always include dependency tools even if not in the filter.
+			if !isDependencyOf(name, opts.OnlyTools, tools) {
+				continue
+			}
+		}
+		if len(onlyGroupSet) > 0 && !onlyGroupSet[strings.ToLower(tool.Group)] {
+			continue
+		}
+		filtered = append(filtered, name)
+	}
+	return filtered
+}
+
+func setOf(items []string) map[string]bool {
+	m := make(map[string]bool, len(items))
+	for _, v := range items {
+		m[strings.ToLower(v)] = true
+	}
+	return m
+}
+
+// isDependencyOf returns true if name is listed in the depends_on of any of the requested tools.
+func isDependencyOf(name string, requestedTools []string, tools map[string]ToolConfig) bool {
+	nameLower := strings.ToLower(name)
+	for _, req := range requestedTools {
+		t, ok := tools[req]
+		if !ok {
+			continue
+		}
+		for _, dep := range t.DependsOn {
+			if strings.ToLower(dep) == nameLower {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func sanitizeEnvKey(name string) string {
@@ -728,5 +833,5 @@ func runHookCfgWithPushContext(root, hookName string, hookCfg HookConfig, execCf
 		}
 	}
 	// pre-push tools operate on no staged files (pass_files defaults to false)
-	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil, false, false, false)
+	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil, RunOptions{})
 }

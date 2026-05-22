@@ -175,10 +175,11 @@ type Config struct {
 }
 
 type HookConfig struct {
-	Enabled  *bool                 `toml:"enabled"`
-	Parallel *bool                 `toml:"parallel"` // nil = use [execution] parallel default
-	Tools    map[string]ToolConfig `toml:"tools"`
-	Policy   *CommitMessagePolicy  `toml:"policy"`
+	Enabled   *bool                 `toml:"enabled"`
+	Parallel  *bool                 `toml:"parallel"`   // nil = use [execution] parallel default
+	SafeStash *bool                 `toml:"safe_stash"` // stash unstaged changes before fixers; auto when any tool has restage=true
+	Tools     map[string]ToolConfig `toml:"tools"`
+	Policy    *CommitMessagePolicy  `toml:"policy"`
 }
 
 type CommitMessagePolicy struct {

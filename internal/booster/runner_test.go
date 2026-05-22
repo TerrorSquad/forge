@@ -141,7 +141,7 @@ func TestRunHookCfg_OnFailureContinue(t *testing.T) {
 		Tools:   map[string]ToolConfig{"always-fails": tool},
 	}
 
-	err := runHookCfg(dir, "pre-push", "", cfg, ExecutionConfig{}, nil, false, false, false)
+	err := runHookCfg(dir, "pre-push", "", cfg, ExecutionConfig{}, nil, RunOptions{})
 	if err != nil {
 		t.Errorf("on_failure=continue must not block the hook, got: %v", err)
 	}
@@ -163,8 +163,110 @@ func TestRunHookCfg_DefaultFailureFails(t *testing.T) {
 		Tools:   map[string]ToolConfig{"always-fails": tool},
 	}
 
-	err := runHookCfg(dir, "pre-push", "", cfg, ExecutionConfig{}, nil, false, false, false)
+	err := runHookCfg(dir, "pre-push", "", cfg, ExecutionConfig{}, nil, RunOptions{})
 	if err == nil {
 		t.Error("expected error when tool fails without on_failure=continue")
+	}
+}
+
+// TestApplyToolFilter_OnlyTools checks that --tool filters to just the named tools.
+func TestApplyToolFilter_OnlyTools(t *testing.T) {
+	tools := map[string]ToolConfig{
+		"ecs":     {Group: "format"},
+		"phpstan": {Group: "analysis"},
+		"psalm":   {Group: "analysis"},
+	}
+	names := []string{"ecs", "phpstan", "psalm"}
+	opts := RunOptions{OnlyTools: []string{"phpstan"}}
+	got := applyToolFilter(names, tools, opts)
+	if len(got) != 1 || got[0] != "phpstan" {
+		t.Errorf("expected [phpstan], got %v", got)
+	}
+}
+
+// TestApplyToolFilter_OnlyGroups checks that --group filters by group name.
+func TestApplyToolFilter_OnlyGroups(t *testing.T) {
+	tools := map[string]ToolConfig{
+		"ecs":     {Group: "format"},
+		"phpstan": {Group: "analysis"},
+		"psalm":   {Group: "analysis"},
+	}
+	names := []string{"ecs", "phpstan", "psalm"}
+	opts := RunOptions{OnlyGroups: []string{"analysis"}}
+	got := applyToolFilter(names, tools, opts)
+	if len(got) != 2 {
+		t.Errorf("expected 2 tools, got %v", got)
+	}
+}
+
+// TestApplyToolFilter_SkipTools checks that --skip-tool excludes named tools.
+func TestApplyToolFilter_SkipTools(t *testing.T) {
+	tools := map[string]ToolConfig{
+		"ecs":     {},
+		"phpstan": {},
+		"psalm":   {},
+	}
+	names := []string{"ecs", "phpstan", "psalm"}
+	opts := RunOptions{SkipTools: []string{"psalm"}}
+	got := applyToolFilter(names, tools, opts)
+	for _, n := range got {
+		if n == "psalm" {
+			t.Error("psalm should have been skipped")
+		}
+	}
+	if len(got) != 2 {
+		t.Errorf("expected 2 tools, got %v", got)
+	}
+}
+
+// TestShouldSkipGroup checks SKIP_GROUP_* env var behaviour.
+func TestShouldSkipGroup(t *testing.T) {
+	t.Setenv("SKIP_GROUP_ANALYSIS", "1")
+	if !shouldSkipGroup("analysis") {
+		t.Error("expected analysis group to be skipped")
+	}
+	if shouldSkipGroup("format") {
+		t.Error("format group should not be skipped")
+	}
+}
+
+// TestSafeStashEnabled_AutoDetect checks that safe_stash is auto-enabled when
+// any tool has restage=true.
+func TestSafeStashEnabled_AutoDetect(t *testing.T) {
+	cfg := HookConfig{
+		Tools: map[string]ToolConfig{
+			"ecs":     {Restage: true},
+			"phpstan": {Restage: false},
+		},
+	}
+	if !safeStashEnabled(cfg) {
+		t.Error("expected safe stash to be auto-enabled when a tool has restage=true")
+	}
+}
+
+// TestSafeStashEnabled_ExplicitFalse checks that safe_stash=false opts out.
+func TestSafeStashEnabled_ExplicitFalse(t *testing.T) {
+	f := false
+	cfg := HookConfig{
+		SafeStash: &f,
+		Tools: map[string]ToolConfig{
+			"ecs": {Restage: true},
+		},
+	}
+	if safeStashEnabled(cfg) {
+		t.Error("expected safe stash to be disabled when safe_stash=false")
+	}
+}
+
+// TestSafeStashEnabled_NoRestageTools checks safe_stash is off when no fixers.
+func TestSafeStashEnabled_NoRestageTools(t *testing.T) {
+	cfg := HookConfig{
+		Tools: map[string]ToolConfig{
+			"phpstan": {Restage: false},
+			"psalm":   {Restage: false},
+		},
+	}
+	if safeStashEnabled(cfg) {
+		t.Error("expected safe stash to be off when no tools have restage=true")
 	}
 }

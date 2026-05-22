@@ -3,6 +3,7 @@ package booster
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -92,4 +93,61 @@ func allTrackedFiles(repoRoot string) ([]string, error) {
 		}
 	}
 	return res, nil
+}
+
+const stashLabel = "booster-pre-commit-safety"
+
+// hasUnstagedChanges returns true when there are unstaged modifications to
+// tracked files or untracked files in the working tree.
+func hasUnstagedChanges(repoRoot string) (bool, error) {
+	// Check modified tracked files not yet staged.
+	out, err := runGit(repoRoot, "diff", "--name-only")
+	if err != nil {
+		return false, err
+	}
+	if strings.TrimSpace(out) != "" {
+		return true, nil
+	}
+	// Check untracked files (non-ignored).
+	out, err = runGit(repoRoot, "ls-files", "--others", "--exclude-standard")
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(out) != "", nil
+}
+
+// stashUnstagedChanges stashes the working tree (unstaged changes + untracked
+// files) while keeping the index intact. Returns the stash ref (e.g.
+// "stash@{0}"), whether a stash was actually created, and any error.
+// A stash is NOT created when there is nothing to stash.
+func stashUnstagedChanges(repoRoot string) (stashRef string, created bool, err error) {
+	if isTruthy(os.Getenv("BOOSTER_NO_STASH")) {
+		return "", false, nil
+	}
+	has, err := hasUnstagedChanges(repoRoot)
+	if err != nil || !has {
+		return "", false, err
+	}
+	_, err = runGit(repoRoot, "stash", "push", "--keep-index", "--include-untracked",
+		"-m", stashLabel)
+	if err != nil {
+		return "", false, fmt.Errorf("stash failed: %w", err)
+	}
+	// Confirm a stash entry was created (git exits 0 even with "No local changes").
+	out, err := runGit(repoRoot, "stash", "list", "--max-count=1")
+	if err != nil || !strings.Contains(out, stashLabel) {
+		return "", false, nil
+	}
+	return "stash@{0}", true, nil
+}
+
+// popStash restores the stash created by stashUnstagedChanges.
+func popStash(repoRoot string) error {
+	_, err := runGit(repoRoot, "stash", "pop", "--index")
+	if err != nil {
+		return fmt.Errorf(
+			"could not restore stashed changes automatically — run 'git stash pop' to restore: %w", err,
+		)
+	}
+	return nil
 }

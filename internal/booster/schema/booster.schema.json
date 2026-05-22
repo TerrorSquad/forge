@@ -79,6 +79,10 @@
           "type": "boolean",
           "description": "Run tools in this hook concurrently. Overrides [execution].parallel for this hook only."
         },
+        "safe_stash": {
+          "type": "boolean",
+          "description": "Stash unstaged changes before running fixers (tools with restage=true), then restore them after. Prevents fixers from including work-in-progress changes in the commit. Auto-enabled when any tool has restage=true. Set to false to opt out."
+        },
         "tools": {
           "type": "object",
           "description": "Named tools to run for this hook. Keys become the tool name shown in output and used for SKIP_<NAME>=1.",

@@ -79,14 +79,17 @@ func assignLevel(name string, tools map[string]ToolConfig, levels map[string]int
 }
 
 // runHookCfgParallel runs hook tools in parallel, respecting depends_on groupings.
-func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec ExecutionConfig, files []string, allFiles, noCache, checkMode bool) error {
-	toolNames := sortedToolNames(hookCfg.Tools)
+func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec ExecutionConfig, files []string, opts RunOptions) error {
+	allFiles := opts.AllFiles
+	noCache := opts.NoCache
+	checkMode := opts.CheckMode
+	toolNames := applyToolFilter(sortedToolNames(hookCfg.Tools), hookCfg.Tools, opts)
 	if len(toolNames) == 0 {
 		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))
 		return nil
 	}
 
-	PrintHookHeader(hookName)
+	PrintHookHeaderCI(hookName)
 
 	allowedGroups := parseAllowedGroups()
 	var allResults []ToolResult
@@ -160,11 +163,7 @@ func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec Executio
 		}
 	}
 
-	if checkMode {
-		PrintCheckSummary(allResults, time.Since(hookStart))
-	} else {
-		PrintSummary(allResults, time.Since(hookStart))
-	}
+	PrintSummaryCI(allResults, time.Since(hookStart), checkMode)
 
 	if cacheUpdated {
 		saveCache(root, tc)
@@ -191,6 +190,11 @@ func runToolWave(root string, names []string, tools map[string]ToolConfig, files
 			pr := parallelToolResult{name: toolName, tool: tool}
 
 			if shouldSkipTool(toolName) {
+				pr.result = ToolResult{Name: toolName, Status: "skip"}
+				results[idx] = pr
+				return
+			}
+			if shouldSkipGroup(tool.Group) {
 				pr.result = ToolResult{Name: toolName, Status: "skip"}
 				results[idx] = pr
 				return
