@@ -119,6 +119,9 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 // runHookCfg executes all tools in hookCfg for the given root / staged files.
 // This is the inner loop used by both the root hook and workspace members.
 func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string, allFiles, noCache, checkMode bool) error {
+	if isParallelMode(hookCfg, exec) {
+		return runHookCfgParallel(root, hookName, hookCfg, exec, files, allFiles, noCache, checkMode)
+	}
 	toolNames := sortedToolNames(hookCfg.Tools)
 	if len(toolNames) == 0 {
 		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))

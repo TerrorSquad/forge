@@ -175,9 +175,10 @@ type Config struct {
 }
 
 type HookConfig struct {
-	Enabled *bool                 `toml:"enabled"`
-	Tools   map[string]ToolConfig `toml:"tools"`
-	Policy  *CommitMessagePolicy  `toml:"policy"`
+	Enabled  *bool                 `toml:"enabled"`
+	Parallel *bool                 `toml:"parallel"` // nil = use [execution] parallel default
+	Tools    map[string]ToolConfig `toml:"tools"`
+	Policy   *CommitMessagePolicy  `toml:"policy"`
 }
 
 type CommitMessagePolicy struct {
@@ -209,6 +210,7 @@ type ToolConfig struct {
 	Cache             bool     `toml:"cache"`                // enable run cache for this tool
 	CheckArgs         []string `toml:"check_args"`           // args override used with --check flag
 	CheckFailIfOutput bool     `toml:"check_fail_if_output"` // treat any stdout output as failure in --check mode
+	DependsOn         []string `toml:"depends_on"`           // tool names that must complete before this one (parallel mode)
 }
 
 // ExecutionConfig holds repository-wide execution defaults.
@@ -216,6 +218,7 @@ type ExecutionConfig struct {
 	DefaultBackend string `toml:"default_backend"`
 	ToolTimeout    string `toml:"tool_timeout"` // global default, e.g. "300s"; empty = no limit
 	Cache          bool   `toml:"cache"`        // enable run cache globally
+	Parallel       bool   `toml:"parallel"`     // run hook tools concurrently (opt-in)
 }
 
 // WorkspaceConfig defines monorepo member discovery.
