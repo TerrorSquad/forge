@@ -185,6 +185,15 @@
           "type": "array",
           "description": "Names of tools in the same hook that must complete before this tool starts (parallel mode only).",
           "items": { "type": "string" }
+        },
+        "stage_outputs": {
+          "type": "array",
+          "description": "File paths (relative to repo root) to 'git add' after this tool runs, regardless of exit code. Useful for generated artifacts such as architecture diagrams or API specs that should be included in the next commit.",
+          "items": { "type": "string" }
+        },
+        "show_output": {
+          "type": "boolean",
+          "description": "Print the tool's stdout/stderr even on success. Useful for test runners where you want to see pass/fail counts and summary output after every run."
         }
       }
     },

@@ -221,6 +221,11 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		dur := time.Since(start)
 		clearRunning()
 
+		// Stage any declared output files regardless of exit code (e.g. generated diagrams).
+		if !checkMode && len(tool.StageOutputs) > 0 {
+			_ = addFiles(root, tool.StageOutputs) // best-effort; never block the hook
+		}
+
 		if err != nil {
 			status := "fail"
 			if checkMode {
@@ -242,7 +247,11 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 			continue
 		}
 
-		r := ToolResult{Name: name, Status: "pass", Duration: dur}
+		passOutput := ""
+		if tool.ShowOutput {
+			passOutput = toolOut
+		}
+		r := ToolResult{Name: name, Status: "pass", Duration: dur, Output: passOutput}
 		PrintToolResult(r)
 		results = append(results, r)
 

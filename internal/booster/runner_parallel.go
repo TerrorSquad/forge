@@ -129,6 +129,25 @@ func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec Executio
 			}
 		}
 
+		// Stage declared output artifacts and apply show_output after each wave (non-check mode only).
+		if !checkMode {
+			for _, pr := range waveResults {
+				// Stage output files regardless of exit code (generated artifacts like diagrams).
+				if len(pr.tool.StageOutputs) > 0 {
+					_ = addFiles(root, pr.tool.StageOutputs) // best-effort; never block the hook
+				}
+			}
+		}
+
+		// Stage declared output artifacts after each wave (regardless of exit code).
+		if !checkMode {
+			for _, pr := range waveResults {
+				if len(pr.tool.StageOutputs) > 0 {
+					_ = addFiles(root, pr.tool.StageOutputs) // best-effort; never block the hook
+				}
+			}
+		}
+
 		// Restage after each wave completes (only in normal mode, not check mode)
 		if !checkMode && !allFiles {
 			for _, pr := range waveResults {
@@ -239,7 +258,11 @@ func runToolWave(root string, names []string, tools map[string]ToolConfig, files
 				}
 				pr.result = ToolResult{Name: toolName, Status: status, Duration: dur, Output: buf.String()}
 			} else {
-				pr.result = ToolResult{Name: toolName, Status: "pass", Duration: dur}
+				passOutput := ""
+				if tool.ShowOutput {
+					passOutput = buf.String()
+				}
+				pr.result = ToolResult{Name: toolName, Status: "pass", Duration: dur, Output: passOutput}
 			}
 			results[idx] = pr
 		}(i, name)
