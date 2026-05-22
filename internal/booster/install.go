@@ -74,11 +74,19 @@ func buildHookScript(exeName, hook string) string {
 	return fmt.Sprintf(`#!/usr/bin/env sh
 set -eu
 
+# Prefer system-installed binary; fall back to repo-local binary (dev workflow)
 if command -v %s >/dev/null 2>&1; then
   exec %s run %s "$@"
 fi
 
-echo "booster not found on PATH. Install it and retry." >&2
+# Local dev: repo root has a compiled binary
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+if [ -x "$REPO_ROOT/%s" ]; then
+  exec "$REPO_ROOT/%s" run %s "$@"
+fi
+
+echo "booster not found on PATH and not found at $REPO_ROOT/%s." >&2
+echo "Run: go build -o booster ./cmd/booster" >&2
 exit 1
-`, exeName, exeName, hook)
+`, exeName, exeName, hook, exeName, exeName, hook, exeName)
 }

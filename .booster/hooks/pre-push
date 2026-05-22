@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+set -eu
+
+# Prefer system-installed binary; fall back to repo-local binary (dev workflow)
+if command -v booster >/dev/null 2>&1; then
+  exec booster run pre-push "$@"
+fi
+
+# Local dev: repo root has a compiled binary
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+if [ -x "$REPO_ROOT/booster" ]; then
+  exec "$REPO_ROOT/booster" run pre-push "$@"
+fi
+
+echo "booster not found on PATH and not found at $REPO_ROOT/booster." >&2
+echo "Run: go build -o booster ./cmd/booster" >&2
+exit 1
