@@ -64,6 +64,8 @@ func cyan(s string) string   { return colorize(ansiCyan, s) }
 // fmtDuration formats a duration as a human-readable string scaled to the magnitude.
 func fmtDuration(d time.Duration) string {
 	switch {
+	case d < time.Microsecond:
+		return fmt.Sprintf("%dns", d.Nanoseconds())
 	case d < time.Millisecond:
 		return fmt.Sprintf("%dµs", d.Microseconds())
 	case d < time.Second:

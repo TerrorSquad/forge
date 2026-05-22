@@ -61,6 +61,11 @@ func RunHook(hookName string, editFile string) error {
 		}
 	}
 
+	if hookName == "pre-push" {
+		pushCtx := parsePushContext(os.Stdin)
+		return runHookCfgWithPushContext(repoRoot, hookName, hookCfg, cfg.Execution, pushCtx)
+	}
+
 	files := []string{}
 	if hookName == "pre-commit" {
 		files, err = stagedFiles(repoRoot)
@@ -191,6 +196,10 @@ func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, edit
 	subject := strings.TrimSpace(lines[0])
 	if policy.ConventionalCommits && !conventionalRegex.MatchString(subject) {
 		return fmt.Errorf("commit subject does not follow conventional commits: %q", subject)
+	}
+
+	if !policy.AppendTicketFooter && !policy.RequireTicket {
+		return nil
 	}
 
 	branch, err := currentBranch(repoRoot)
@@ -373,4 +382,71 @@ func containsLine(lines []string, line string) bool {
 		}
 	}
 	return false
+}
+
+// PushContext holds the ref info git passes to pre-push via stdin.
+type PushContext struct {
+	Remote string
+	URL    string
+	Refs   []PushRef
+}
+
+// PushRef is one pushed ref line from git's stdin.
+type PushRef struct {
+	LocalRef  string
+	LocalSHA  string
+	RemoteRef string
+	RemoteSHA string
+}
+
+// parsePushContext reads git's pre-push stdin payload and the BOOSTER_PUSH_*
+// env vars (which the shim should set from $1/$2).
+func parsePushContext(r io.Reader) PushContext {
+	ctx := PushContext{
+		Remote: os.Getenv("BOOSTER_PUSH_REMOTE"),
+		URL:    os.Getenv("BOOSTER_PUSH_URL"),
+	}
+	if r == nil {
+		return ctx
+	}
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		parts := strings.Fields(scanner.Text())
+		if len(parts) < 4 {
+			continue
+		}
+		ctx.Refs = append(ctx.Refs, PushRef{
+			LocalRef:  parts[0],
+			LocalSHA:  parts[1],
+			RemoteRef: parts[2],
+			RemoteSHA: parts[3],
+		})
+	}
+	// Derive branch from first ref if not set
+	if ctx.Remote == "" && len(ctx.Refs) > 0 {
+		ref := ctx.Refs[0].LocalRef
+		if strings.HasPrefix(ref, "refs/heads/") {
+			ctx.Remote = strings.TrimPrefix(ref, "refs/heads/")
+		}
+	}
+	return ctx
+}
+
+// runHookCfgWithPushContext runs pre-push tools, injecting push context into env.
+func runHookCfgWithPushContext(root, hookName string, hookCfg HookConfig, execCfg ExecutionConfig, ctx PushContext) error {
+	// Expose push context as env vars for tools
+	if ctx.Remote != "" {
+		os.Setenv("BOOSTER_PUSH_REMOTE", ctx.Remote)
+	}
+	if ctx.URL != "" {
+		os.Setenv("BOOSTER_PUSH_URL", ctx.URL)
+	}
+	if len(ctx.Refs) > 0 {
+		ref := ctx.Refs[0].LocalRef
+		if strings.HasPrefix(ref, "refs/heads/") {
+			os.Setenv("BOOSTER_PUSH_BRANCH", strings.TrimPrefix(ref, "refs/heads/"))
+		}
+	}
+	// pre-push tools operate on no staged files (pass_files defaults to false)
+	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil)
 }
