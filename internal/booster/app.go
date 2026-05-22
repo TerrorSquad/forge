@@ -20,10 +20,19 @@ func Run(args []string) int {
 	case "init":
 		fs := flag.NewFlagSet("init", flag.ContinueOnError)
 		force := fs.Bool("force", false, "overwrite booster.toml if it already exists")
+		preset := fs.String("preset", "", "starter preset (node, php, php-node, go, minimal)")
+		listPresets := fs.Bool("list-presets", false, "list available presets and exit")
 		if err := fs.Parse(args[1:]); err != nil {
 			return 2
 		}
-		if err := InitConfig(*force); err != nil {
+		if *listPresets {
+			fmt.Println("Available presets:")
+			for _, p := range ListPresets() {
+				fmt.Printf("  %s\n", p)
+			}
+			return 0
+		}
+		if err := InitConfig(*force, *preset); err != nil {
 			fmt.Fprintf(os.Stderr, "init failed: %v\n", err)
 			return 1
 		}
@@ -107,15 +116,19 @@ func printHelp() {
 	fmt.Println(`booster - policy-driven git hook runner
 
 Usage:
-  booster init [--force]
+  booster init [--force] [--preset PRESET] [--list-presets]
   booster install
   booster uninstall
   booster run <hook> [--edit FILE]
   booster migrate [--from FILE] [--to FILE]
   booster doctor
 
+Presets:
+  node, php, php-node, go, minimal
+
 Examples:
-  booster init
+  booster init --preset go
+  booster init --list-presets
   booster install
   booster run pre-commit
   booster run commit-msg --edit .git/COMMIT_EDITMSG
