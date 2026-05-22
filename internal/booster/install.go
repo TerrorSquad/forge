@@ -43,6 +43,12 @@ func InstallHooks() error {
 	excludeEntry := ".booster/cache.json\n"
 	addToExclude(excludeFile, excludeEntry)
 
+	// Write the JSON Schema and Taplo config for IDE support.
+	if err := installSchema(repoRoot); err != nil {
+		// Non-fatal: schema is a convenience feature.
+		fmt.Printf("warning: could not write schema: %v\n", err)
+	}
+
 	fmt.Println("Installed hook shims in .booster/hooks")
 	fmt.Println("Configured git core.hooksPath=.booster/hooks")
 	return nil
@@ -115,4 +121,41 @@ echo "booster not found on PATH and not found at $REPO_ROOT/%s." >&2
 echo "Run: go build -o booster ./cmd/booster" >&2
 exit 1
 `, exeName, prePushEnv, exeName, hook, exeName, prePushEnv, exeName, hook, exeName)
+}
+
+// installSchema writes booster.schema.json to .booster/ and creates/updates
+// .taplo.toml so that Even Better TOML (and any Taplo-based editor) automatically
+// provides schema validation and completion for booster.toml.
+func installSchema(repoRoot string) error {
+	boosterDir := filepath.Join(repoRoot, ".booster")
+	schemaPath := filepath.Join(boosterDir, "booster.schema.json")
+
+	if err := os.WriteFile(schemaPath, []byte(SchemaJSON), 0644); err != nil {
+		return fmt.Errorf("write schema: %w", err)
+	}
+
+	taplo := filepath.Join(repoRoot, ".taplo.toml")
+	rule := `
+[[rule]]
+name = "booster"
+include = ["**/booster.toml"]
+url = "file:./.booster/booster.schema.json"
+`
+	data, _ := os.ReadFile(taplo)
+	if strings.Contains(string(data), `name = "booster"`) {
+		// Rule already present — update the schema path in case it moved.
+		updated := strings.ReplaceAll(string(data),
+			`url = "file:./.booster/booster.schema.json"`,
+			`url = "file:./.booster/booster.schema.json"`,
+		)
+		return os.WriteFile(taplo, []byte(updated), 0644)
+	}
+
+	f, err := os.OpenFile(taplo, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("open .taplo.toml: %w", err)
+	}
+	defer f.Close()
+	_, err = f.WriteString(rule)
+	return err
 }
