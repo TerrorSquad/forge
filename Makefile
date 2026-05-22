@@ -1,0 +1,18 @@
+BINARY     := booster
+INSTALL    := $(HOME)/.local/bin/$(BINARY)
+BUILD_FLAGS := -ldflags="-s -w" -trimpath
+CGO_ENABLED := 0
+
+.PHONY: build install test clean
+
+build:
+	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_FLAGS) -o $(BINARY) ./cmd/booster
+
+install: build
+	cp $(BINARY) $(INSTALL)
+
+test:
+	go test ./...
+
+clean:
+	rm -f $(BINARY)
