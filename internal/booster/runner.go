@@ -2,13 +2,16 @@ package booster
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 var ticketRegex = regexp.MustCompile(`([A-Z]+-[0-9]+)`)
@@ -21,7 +24,7 @@ func RunHook(hookName string, editFile string) error {
 	}
 
 	if isHookSkippedEnv(hookName) {
-		fmt.Printf("Skipping %s (env skip set)\n", hookName)
+		fmt.Fprintf(UI, "%s\n", yellow("~ "+hookName+" skipped (env skip set)"))
 		return ErrHookSkipped
 	}
 
@@ -29,11 +32,11 @@ func RunHook(hookName string, editFile string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Using config: %s\n", configPath)
+	fmt.Fprintf(UI, "%s\n", dim("config: "+configPath))
 
 	hookCfg, ok := cfg.Hooks[hookName]
 	if !ok || !hookCfg.IsEnabled() {
-		fmt.Printf("Hook %s disabled or not configured\n", hookName)
+		fmt.Fprintf(UI, "%s\n", dim(hookName+" disabled or not configured"))
 		return ErrHookSkipped
 	}
 
@@ -65,7 +68,7 @@ func RunHook(hookName string, editFile string) error {
 			return err
 		}
 		if len(files) == 0 {
-			fmt.Println("No staged files. Nothing to run.")
+			fmt.Fprintf(UI, "%s\n", dim("no staged files — nothing to run"))
 			return nil
 		}
 	}
@@ -78,23 +81,31 @@ func RunHook(hookName string, editFile string) error {
 func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string) error {
 	toolNames := sortedToolNames(hookCfg.Tools)
 	if len(toolNames) == 0 {
-		fmt.Printf("No tools configured for %s\n", hookName)
+		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))
 		return nil
 	}
 
+	PrintHookHeader(hookName)
+
 	allowedGroups := parseAllowedGroups()
+	var results []ToolResult
+	hookStart := time.Now()
 	failed := false
 
 	for _, name := range toolNames {
 		tool := hookCfg.Tools[name]
 
 		if shouldSkipTool(name) {
-			fmt.Printf("- %s: skipped\n", name)
+			r := ToolResult{Name: name, Status: "skip"}
+			PrintToolResult(r)
+			results = append(results, r)
 			continue
 		}
 		if len(allowedGroups) > 0 && tool.Group != "" {
 			if _, ok := allowedGroups[strings.ToLower(tool.Group)]; !ok {
-				fmt.Printf("- %s: skipped by HOOKS_ONLY\n", name)
+				r := ToolResult{Name: name, Status: "skip"}
+				PrintToolResult(r)
+				results = append(results, r)
 				continue
 			}
 		}
@@ -104,21 +115,32 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 
 		filesToRun := filterFiles(files, tool)
 		if hookName == "pre-commit" && tool.PassFilesEnabled() && len(filesToRun) == 0 {
-			fmt.Printf("- %s: no matching files\n", name)
+			r := ToolResult{Name: name, Status: "skip"}
+			PrintToolResult(r)
+			results = append(results, r)
 			continue
 		}
 
 		backend := ResolveBackend(root, tool, exec.DefaultBackend)
-		fmt.Printf("- %s: running (backend: %s)\n", name, backend.Name())
-		err := executeTool(root, tool, filesToRun, backend)
+		start := time.Now()
+		toolOut, err := executeToolCaptured(root, tool, filesToRun, backend)
+		dur := time.Since(start)
+
 		if err != nil {
-			fmt.Printf("  %s failed: %v\n", name, err)
+			r := ToolResult{Name: name, Status: "fail", Duration: dur, Output: toolOut}
+			PrintToolResult(r)
+			results = append(results, r)
 			failed = true
 			if strings.EqualFold(strings.TrimSpace(tool.OnFailure), "stop") {
+				PrintSummary(results, time.Since(hookStart))
 				return fmt.Errorf("tool %s failed and requested stop", name)
 			}
 			continue
 		}
+
+		r := ToolResult{Name: name, Status: "pass", Duration: dur}
+		PrintToolResult(r)
+		results = append(results, r)
 
 		if tool.Restage && tool.PassFilesEnabled() {
 			if err := addFiles(root, filesToRun); err != nil {
@@ -127,11 +149,25 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		}
 	}
 
+	PrintSummary(results, time.Since(hookStart))
+
 	if failed {
 		return errors.New("one or more tools failed")
 	}
 
 	return nil
+}
+
+// executeToolCaptured runs the tool and returns captured combined output on
+// failure. On success the output is discarded (streamed to /dev/null is not
+// quite right — we stream to a buffer and only surface it on error).
+func executeToolCaptured(repoRoot string, tool ToolConfig, files []string, backend Backend) (string, error) {
+	var buf bytes.Buffer
+	err := executeToolWithWriter(repoRoot, tool, files, backend, &buf)
+	if err != nil {
+		return buf.String(), err
+	}
+	return "", nil
 }
 
 func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, editFile string) error {
@@ -186,6 +222,11 @@ func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, edit
 }
 
 func executeTool(repoRoot string, tool ToolConfig, files []string, backend Backend) error {
+	_, err := executeToolCaptured(repoRoot, tool, files, backend)
+	return err
+}
+
+func executeToolWithWriter(repoRoot string, tool ToolConfig, files []string, backend Backend, w io.Writer) error {
 	cmd := resolveCommandForBackend(repoRoot, tool, backend)
 	if tool.RunPerFile {
 		for _, file := range files {
@@ -193,7 +234,7 @@ func executeTool(repoRoot string, tool ToolConfig, files []string, backend Backe
 			if tool.PassFilesEnabled() {
 				args = append(args, file)
 			}
-			if err := backend.Exec(repoRoot, append([]string{cmd}, args...)); err != nil {
+			if err := backend.ExecWithWriter(repoRoot, append([]string{cmd}, args...), w); err != nil {
 				return err
 			}
 		}
@@ -204,7 +245,7 @@ func executeTool(repoRoot string, tool ToolConfig, files []string, backend Backe
 	if tool.PassFilesEnabled() {
 		args = append(args, files...)
 	}
-	return backend.Exec(repoRoot, append([]string{cmd}, args...))
+	return backend.ExecWithWriter(repoRoot, append([]string{cmd}, args...), w)
 }
 
 func filterFiles(files []string, tool ToolConfig) []string {

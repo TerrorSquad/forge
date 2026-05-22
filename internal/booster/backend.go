@@ -3,6 +3,7 @@ package booster
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,8 +13,10 @@ import (
 type Backend interface {
 	// Name returns the backend identifier.
 	Name() string
-	// Exec runs cmd with args, streaming stdout/stderr.
+	// Exec runs cmd with args, streaming stdout/stderr to the process stdout/stderr.
 	Exec(dir string, cmd []string) error
+	// ExecWithWriter runs cmd with args, writing combined stdout+stderr to w.
+	ExecWithWriter(dir string, cmd []string, w io.Writer) error
 	// BinaryExists checks whether the named binary is available in this backend.
 	BinaryExists(dir, binary string) bool
 }
@@ -24,10 +27,19 @@ type HostBackend struct{}
 func (b *HostBackend) Name() string { return "host" }
 
 func (b *HostBackend) Exec(dir string, cmd []string) error {
+	return b.ExecWithWriter(dir, cmd, nil)
+}
+
+func (b *HostBackend) ExecWithWriter(dir string, cmd []string, w io.Writer) error {
 	c := exec.Command(cmd[0], cmd[1:]...)
 	c.Dir = dir
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
+	if w != nil {
+		c.Stdout = w
+		c.Stderr = w
+	} else {
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+	}
 	c.Stdin = os.Stdin
 	return c.Run()
 }
@@ -53,11 +65,20 @@ type DdevBackend struct{}
 func (b *DdevBackend) Name() string { return "ddev" }
 
 func (b *DdevBackend) Exec(dir string, cmd []string) error {
+	return b.ExecWithWriter(dir, cmd, nil)
+}
+
+func (b *DdevBackend) ExecWithWriter(dir string, cmd []string, w io.Writer) error {
 	ddevCmd := append([]string{"ddev", "exec", "--"}, cmd...)
 	c := exec.Command(ddevCmd[0], ddevCmd[1:]...)
 	c.Dir = dir
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
+	if w != nil {
+		c.Stdout = w
+		c.Stderr = w
+	} else {
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+	}
 	c.Stdin = os.Stdin
 	return c.Run()
 }
