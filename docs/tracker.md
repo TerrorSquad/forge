@@ -34,7 +34,7 @@ Track implementation progress for all booster features.
 
 | # | Feature | Status | Priority | Notes |
 |---|---------|--------|----------|-------|
-| [015](specs/feature-015-parallel-execution.md) | Parallel Execution | 🔲 Not Started | P2 | `[execution] parallel = true`; goroutine pool, ordered output |
+| [015](specs/feature-015-parallel-execution.md) | Parallel Execution | ✅ Done | P2 | `[execution] parallel = true`; `depends_on` DAG; wave-based goroutine execution; buffered per-tool output |
 | [016](specs/feature-016-pre-push-runner.md) | Pre-Push Runner | ✅ Done | P1 | Push context parsed from stdin; `BOOSTER_PUSH_REMOTE`/`URL` env vars injected |
 | [017](specs/feature-017-colored-output-timing.md) | Colored Output and Timing | ✅ Done | P2 | ANSI color, per-tool duration, summary line |
 | [018](specs/feature-018-all-files-flag.md) | `--all-files` Flag | ✅ Done | P2 | `booster run pre-commit --all-files`; uses `git ls-files`; suppresses restage |
@@ -44,9 +44,9 @@ Track implementation progress for all booster features.
 | [022](specs/feature-022-doctor-fix.md) | `doctor --fix` | ✅ Done | P2 | Auto-reinstalls shims, sets `core.hooksPath`; `--dry-run` support |
 | [023](specs/feature-023-global-user-config.md) | Global User Config | ✅ Done | P2 | `~/.config/booster/config.toml` (XDG); merge semantics — repo wins |
 | [024](specs/feature-024-run-cache.md) | Run Cache | ✅ Done | P2 | SHA-256 content-addressed cache in `.booster/cache.json`; per-tool or global `cache = true`; `booster cache clear`; `--no-cache` flag |
-| [025](specs/feature-025-remote-presets.md) | Remote Presets | 🔄 In Progress | P3 | `--preset https://...`; HTTPS-only; TOML validation; `--yes`/`CI=true` skip prompt |
-| [026](specs/feature-026-check-dry-run.md) | `--check` Dry-Run Mode | 🔲 Not Started | P3 | `booster run pre-commit --check`; uses `check_args`; no restage |
-| [027](specs/feature-027-post-commit.md) | `post-commit` Hook | 🔲 Not Started | P3 | Informational only; failures don't block |
+| [025](specs/feature-025-remote-presets.md) | Remote Presets | ✅ Done | P3 | `--preset https://...`; HTTPS-only; TOML validation; `--yes`/`CI=true` skip prompt |
+| [026](specs/feature-026-check-dry-run.md) | `--check` Dry-Run Mode | ✅ Done | P3 | `booster run pre-commit --check`; `check_args`/`check_fail_if_output` per tool; `would-fail` status; check-mode summary |
+| [027](specs/feature-027-post-commit.md) | `post-commit` Hook | ✅ Done | P3 | Informational banner; failures surfaced but commit not aborted; `SKIP_POSTCOMMIT=1` |
 | [028](specs/feature-028-tui-progress.md) | TUI Progress | ⏸ Deferred | P4 | Bubble Tea live progress bars; deferred |
 
 ---
@@ -57,8 +57,8 @@ Track implementation progress for all booster features.
 |-----------|----------|------|----------|
 | v1 core   | 001–009  | 9/9  | ✅ Complete |
 | v1.x      | 010–014  | 5/5  | ✅ Complete |
-| v2        | 015–028  | 10/14 | 🔄 71% |
-| **Total** | **28**   | **24** | **86%** |
+| v2        | 015–028  | 13/14 | 🔄 93% |
+| **Total** | **28**   | **27** | **96%** |
 
 ---
 
