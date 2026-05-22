@@ -71,22 +71,29 @@ func UninstallHooks() error {
 }
 
 func buildHookScript(exeName, hook string) string {
+	// For pre-push, forward git's $1/$2 (remote name and URL) as env vars
+	prePushEnv := ""
+	if hook == "pre-push" {
+		prePushEnv = `
+BOOSTER_PUSH_REMOTE="$1" BOOSTER_PUSH_URL="$2" \`
+	}
+
 	return fmt.Sprintf(`#!/usr/bin/env sh
 set -eu
 
 # Prefer system-installed binary; fall back to repo-local binary (dev workflow)
-if command -v %s >/dev/null 2>&1; then
+if command -v %s >/dev/null 2>&1; then%s
   exec %s run %s "$@"
 fi
 
 # Local dev: repo root has a compiled binary
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
-if [ -x "$REPO_ROOT/%s" ]; then
+if [ -x "$REPO_ROOT/%s" ]; then%s
   exec "$REPO_ROOT/%s" run %s "$@"
 fi
 
 echo "booster not found on PATH and not found at $REPO_ROOT/%s." >&2
 echo "Run: go build -o booster ./cmd/booster" >&2
 exit 1
-`, exeName, exeName, hook, exeName, exeName, hook, exeName)
+`, exeName, prePushEnv, exeName, hook, exeName, prePushEnv, exeName, hook, exeName)
 }
