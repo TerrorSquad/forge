@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -75,7 +74,8 @@ func (b *HostBackend) BinaryExists(dir, binary string) bool {
 	return err == nil
 }
 
-// DdevBackend routes commands through `ddev exec`.
+// DdevBackend routes commands through `docker exec` into the DDEV web container.
+// This is faster than `ddev exec` because it skips the DDEV CLI overhead.
 type DdevBackend struct{}
 
 func (b *DdevBackend) Name() string { return "ddev" }
@@ -89,13 +89,18 @@ func (b *DdevBackend) ExecWithWriter(dir string, cmd []string, w io.Writer) erro
 }
 
 func (b *DdevBackend) ExecWithContext(ctx context.Context, dir string, cmd []string, env map[string]string, w io.Writer) error {
-	ddevArgs := []string{"ddev", "exec"}
-	for k, v := range env {
-		ddevArgs = append(ddevArgs, "--env", k+"="+v)
+	container, err := ddevContainerName(dir)
+	if err != nil {
+		return fmt.Errorf("ddev backend: %w", err)
 	}
-	ddevArgs = append(ddevArgs, "--")
-	ddevCmd := append(ddevArgs, cmd...)
-	c := exec.CommandContext(ctx, ddevCmd[0], ddevCmd[1:]...)
+	// docker exec -i -w /var/www/html [-e KEY=VAL ...] <container> <cmd...>
+	dockerArgs := []string{"docker", "exec", "-i", "-w", "/var/www/html"}
+	for k, v := range env {
+		dockerArgs = append(dockerArgs, "-e", k+"="+v)
+	}
+	dockerArgs = append(dockerArgs, container)
+	dockerArgs = append(dockerArgs, cmd...)
+	c := exec.CommandContext(ctx, dockerArgs[0], dockerArgs[1:]...)
 	c.Dir = dir
 	if w != nil {
 		c.Stdout = w
@@ -144,20 +149,46 @@ func ResolveBackend(repoRoot string, tool config.ToolConfig, globalDefault strin
 	return &HostBackend{}
 }
 
-// isDdevRunning returns true if a DDEV project is active in repoRoot.
+// isDdevRunning returns true if the DDEV web container for repoRoot is running.
+// Uses `docker inspect` directly — faster than `ddev status`.
 func isDdevRunning(repoRoot string) bool {
-	cfg := filepath.Join(repoRoot, ".ddev", "config.yaml")
-	if _, err := os.Stat(cfg); err != nil {
+	container, err := ddevContainerName(repoRoot)
+	if err != nil {
 		return false
 	}
-	var out bytes.Buffer
-	c := exec.Command("ddev", "status", "--json-output")
-	c.Dir = repoRoot
-	c.Stdout = &out
-	if err := c.Run(); err != nil {
+	out, err := exec.Command("docker", "inspect", "--format", "{{.State.Running}}", container).Output()
+	if err != nil {
 		return false
 	}
-	return bytes.Contains(out.Bytes(), []byte(`"running"`))
+	return strings.TrimSpace(string(out)) == "true"
+}
+
+// ddevProjectName reads the DDEV project name from .ddev/config.yaml.
+func ddevProjectName(repoRoot string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".ddev", "config.yaml"))
+	if err != nil {
+		return "", fmt.Errorf("no .ddev/config.yaml found: %w", err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "name:") {
+			name := strings.TrimSpace(strings.TrimPrefix(line, "name:"))
+			name = strings.Trim(name, `"'`)
+			if name != "" {
+				return name, nil
+			}
+		}
+	}
+	return "", fmt.Errorf(".ddev/config.yaml has no 'name:' field")
+}
+
+// ddevContainerName returns the Docker container name for the DDEV web service.
+func ddevContainerName(repoRoot string) (string, error) {
+	name, err := ddevProjectName(repoRoot)
+	if err != nil {
+		return "", err
+	}
+	return "ddev-" + name + "-web", nil
 }
 
 // ResolveCommandForBackend resolves a vendor/node_modules binary path relative
