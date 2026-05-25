@@ -12,6 +12,7 @@ import (
 	"github.com/TerrorSquad/forge/internal/forge/git"
 	"github.com/TerrorSquad/forge/internal/forge/runner"
 	"github.com/TerrorSquad/forge/internal/forge/ui"
+	"github.com/TerrorSquad/forge/internal/forge/update"
 )
 
 // Version information injected at build time via ldflags.
@@ -105,6 +106,8 @@ func Run(args []string) int {
 		return runCommand(args[1:])
 	case "migrate":
 		return migrateCommand(args[1:])
+	case "update":
+		return updateCommand(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", args[0])
 		printHelp()
@@ -150,6 +153,14 @@ func runCommand(args []string) int {
 	if extra := fs.Args(); len(extra) > 1 {
 		opts.Source = extra[1]
 	}
+
+	// Emit a non-blocking pin_version warning before the hook runs.
+	if repoRoot, err := git.DetectRepoRoot(); err == nil {
+		if cfg, _, err := config.LoadConfig(repoRoot); err == nil {
+			warnPinVersion(cfg.Update)
+		}
+	}
+
 	if err := runner.RunHookWithOptions(hook, *edit, opts); err != nil {
 		if errors.Is(err, config.ErrHookSkipped) {
 			return 0
@@ -212,6 +223,7 @@ Usage:
   forge ci
   forge migrate [--from FILE] [--to FILE]
   forge doctor [--fix] [--dry-run]
+  forge update [--check] [--version TAG] [--rollback]
   forge cache clear
   forge completion <bash|zsh|fish>
 
@@ -238,6 +250,47 @@ Examples:
   forge list
   forge ci
   forge cache clear`)
+}
+
+func updateCommand(args []string) int {
+	fs := flag.NewFlagSet("update", flag.ContinueOnError)
+	checkOnly := fs.Bool("check", false, "print latest version without installing")
+	version := fs.String("version", "", "install a specific version tag (e.g. v1.3.2)")
+	rollback := fs.Bool("rollback", false, "restore the previous binary backup")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	opts := update.Options{
+		CheckOnly:      *checkOnly,
+		Version:        *version,
+		Rollback:       *rollback,
+		CurrentVersion: Version,
+	}
+	err := update.Run(opts, os.Stdout)
+	if err != nil {
+		if errors.Is(err, update.ErrUpdateAvailable) {
+			return 1
+		}
+		fmt.Fprintf(os.Stderr, "update: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+// warnPinVersion prints a non-blocking warning when forge.toml pins a version
+// that differs from the running binary.
+func warnPinVersion(cfg config.UpdateConfig) {
+	if cfg.PinVersion == "" {
+		return
+	}
+	running := Version
+	if running == cfg.PinVersion {
+		return
+	}
+	fmt.Fprintf(os.Stderr,
+		"⚠ forge %s is running but forge.toml pins %s.\n  Run `forge update --version %s` to upgrade.\n",
+		running, cfg.PinVersion, cfg.PinVersion,
+	)
 }
 
 func splitCSV(s string) []string {

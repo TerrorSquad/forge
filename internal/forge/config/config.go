@@ -18,6 +18,15 @@ type Config struct {
 	Hooks     map[string]HookConfig `toml:"hooks"`
 	Execution ExecutionConfig       `toml:"execution"`
 	Workspace WorkspaceConfig       `toml:"workspace"`
+	Update    UpdateConfig          `toml:"update"`
+}
+
+// UpdateConfig controls self-update behaviour.
+type UpdateConfig struct {
+	// PinVersion warns when the running binary differs from this version.
+	PinVersion string `toml:"pin_version"`
+	// Channel selects the release channel: "stable" (default) or "rc".
+	Channel string `toml:"channel"`
 }
 
 type HookConfig struct {
