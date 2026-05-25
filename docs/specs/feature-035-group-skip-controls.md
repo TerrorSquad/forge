@@ -27,8 +27,8 @@ SKIP_GROUP_ANALYSIS=1 git commit -m "wip"
    analysis group AND ecs (even if ecs is in a different group).
 3. When a tool is skipped by group, its row shows `~` (same as per-tool skip)
    with a note: `(group: analysis)`.
-4. `SKIP_GROUP_*` is documented by `booster doctor` and listed in the hook
-   output when `BOOSTER_DEBUG=1`.
+4. `SKIP_GROUP_*` is documented by `forge doctor` and listed in the hook
+   output when `FORGE_DEBUG=1`.
 5. Group names are case-insensitive in env var matching (`SKIP_GROUP_Analysis`
    and `SKIP_GROUP_ANALYSIS` are equivalent).
 
@@ -54,9 +54,9 @@ Unknown group names produce a warning (not an error):
 ⚠ SKIP_GROUP_UNKNOWN=1: no tools belong to group "unknown" in pre-commit
 ```
 
-## `booster doctor` Integration
+## `forge doctor` Integration
 
-`booster doctor` lists available group skip vars for the current config:
+`forge doctor` lists available group skip vars for the current config:
 
 ```
 Available SKIP_GROUP_* variables (pre-commit):
@@ -66,6 +66,6 @@ Available SKIP_GROUP_* variables (pre-commit):
 ```
 
 ## Out of Scope
-- `ONLY_GROUP_*` (run only a specific group) — use `booster run --group` from
+- `ONLY_GROUP_*` (run only a specific group) — use `forge run --group` from
   feature-031 for that use case.
 - Nested groups or group hierarchies.

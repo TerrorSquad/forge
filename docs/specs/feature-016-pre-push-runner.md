@@ -18,10 +18,10 @@ And sets env vars `$1` = remote name, `$2` = remote URL.
 
 ## Functional Requirements
 
-1. booster reads stdin lines and exposes them to tools as env vars:
-   - `BOOSTER_PUSH_REMOTE` — remote name (e.g. `origin`)
-   - `BOOSTER_PUSH_URL` — remote URL
-   - `BOOSTER_PUSH_BRANCH` — local branch being pushed
+1. forge reads stdin lines and exposes them to tools as env vars:
+   - `FORGE_PUSH_REMOTE` — remote name (e.g. `origin`)
+   - `FORGE_PUSH_URL` — remote URL
+   - `FORGE_PUSH_BRANCH` — local branch being pushed
 2. Tools configured under `[hooks.pre-push]` run sequentially (or parallel if
    enabled).
 3. `pass_files` defaults to `false` for pre-push tools (no staged-file list).

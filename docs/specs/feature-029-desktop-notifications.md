@@ -15,13 +15,13 @@ requiring terminal focus.
 
 **Success (macOS / Linux)**
 ```
-🎉 booster · pre-push passed
+🎉 forge · pre-push passed
 4 passed · 9.3s
 ```
 
 **Failure**
 ```
-❌ booster · pre-push failed
+❌ forge · pre-push failed
 tests failed · 3 passed · 1 failed · 12.1s
 ```
 
@@ -32,7 +32,7 @@ by the OS notification system).
 
 1. Notification is sent after every hook run (pass or fail) when the hook takes
    longer than a configurable threshold.
-2. Global config in `booster.toml`:
+2. Global config in `forge.toml`:
    ```toml
    [notifications]
    enabled   = true
@@ -47,7 +47,7 @@ by the OS notification system).
    ```
 4. Notification delivery is best-effort — failure to deliver (no daemon,
    missing binary) must never fail the hook.
-5. `BOOSTER_NO_NOTIFY=1` suppresses all notifications unconditionally.
+5. `FORGE_NO_NOTIFY=1` suppresses all notifications unconditionally.
 
 ## Platform Support
 

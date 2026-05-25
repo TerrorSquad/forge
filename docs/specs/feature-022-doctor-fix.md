@@ -1,16 +1,16 @@
 # Feature 022: doctor --fix
 
 ## Summary
-Extend `booster doctor` with a `--fix` flag that automatically resolves
+Extend `forge doctor` with a `--fix` flag that automatically resolves
 detected issues instead of just reporting them.
 
 ## Motivation
-`booster doctor` is diagnostic-only today. Common issues (missing shims, wrong
+`forge doctor` is diagnostic-only today. Common issues (missing shims, wrong
 `core.hooksPath`) are trivially fixable and should not require manual steps.
 
 ## Functional Requirements
 
-1. `booster doctor --fix` runs all checks and, for each fixable issue,
+1. `forge doctor --fix` runs all checks and, for each fixable issue,
    applies the fix automatically.
 2. Fixable issues and their remedies:
 
@@ -18,7 +18,7 @@ detected issues instead of just reporting them.
    |-------|-----|
    | Hook shims missing / outdated | Re-run `InstallHooks()` |
    | `core.hooksPath` not set or wrong | Reset via `git config` |
-   | `booster.toml` missing | Prompt to run `booster init` (interactive) or skip in CI |
+   | `forge.toml` missing | Prompt to run `forge init` (interactive) or skip in CI |
 
 3. Non-fixable issues (missing tool binaries, no git repo) are still
    reported with a clear message and no action taken.
@@ -34,4 +34,4 @@ detected issues instead of just reporting them.
 ## Non-Functional Requirements
 - Must not silently overwrite a customised `core.hooksPath` pointing to a
   different directory. Warn and skip if the current value is neither
-  `.booster/hooks` nor unset.
+  `.forge/hooks` nor unset.

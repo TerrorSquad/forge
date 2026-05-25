@@ -1,17 +1,17 @@
 # Feature 001: CLI Command Surface
 
 ## Summary
-Provide a single executable (`booster`) with predictable subcommands for repository setup, hook management, and runtime execution.
+Provide a single executable (`forge`) with predictable subcommands for repository setup, hook management, and runtime execution.
 
 ## Motivation
 Teams should not need shell-script glue for every repository. A consistent command surface reduces onboarding friction and enables automation via setup scripts.
 
 ## Scope
-- `booster init [--force]`
-- `booster install`
-- `booster uninstall`
-- `booster run <hook> [--edit FILE]`
-- `booster doctor`
+- `forge init [--force]`
+- `forge install`
+- `forge uninstall`
+- `forge run <hook> [--edit FILE]`
+- `forge doctor`
 
 ## Functional Requirements
 1. CLI returns non-zero on invalid command usage.

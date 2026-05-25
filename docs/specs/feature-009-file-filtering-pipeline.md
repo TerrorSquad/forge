@@ -1,7 +1,7 @@
 # Feature 009: File Filtering and Staged-File Pipeline
 
 ## Summary
-Define the exact pipeline by which booster discovers, filters, and passes files
+Define the exact pipeline by which forge discovers, filters, and passes files
 to each tool during the pre-commit hook.
 
 ## Motivation

@@ -13,7 +13,7 @@ including the developer's uncommitted work. This is the classic "oops, I
 committed half-finished code" problem.
 
 The standard mitigation is to `git stash -u --keep-index` before running
-fixers, then `git stash pop` after. Booster should do this automatically.
+fixers, then `git stash pop` after. Forge should do this automatically.
 
 ## Visual Design
 
@@ -33,7 +33,7 @@ pre-commit
 1. Stash is created only when **any** configured tool has `restage = true`
    (i.e. a fixer is present). Pure analysis tools (no restage) don't need it.
 2. Stash strategy: `git stash push --keep-index --include-untracked -m
-   "booster-pre-commit-safety"`. Only unstaged tracked and untracked files
+   "forge-pre-commit-safety"`. Only unstaged tracked and untracked files
    are stashed; staged index is left intact.
 3. After all tools complete (pass or fail), the stash is always popped. Pop
    failure (e.g. merge conflict due to fixer changing a line the unstaged
@@ -44,7 +44,7 @@ pre-commit
      Stash ref: stash@{0}
    ```
 4. If no stash entry is created (nothing to stash), skip silently.
-5. `BOOSTER_NO_STASH=1` disables stash behaviour globally.
+5. `FORGE_NO_STASH=1` disables stash behaviour globally.
 6. Can be disabled per-hook:
    ```toml
    [hooks.pre-commit]
@@ -63,11 +63,11 @@ pre-commit
 
 ## Non-Functional Requirements
 - Stash/pop adds < 200ms overhead in typical repos (< 500 files).
-- Stash is always labelled `booster-pre-commit-safety` for easy identification.
+- Stash is always labelled `forge-pre-commit-safety` for easy identification.
 - If a stash already exists with that label from a crashed previous run,
-  booster warns and creates a new numbered entry rather than overwriting.
+  forge warns and creates a new numbered entry rather than overwriting.
 
 ## Out of Scope
 - Stash during pre-push (no fixers run in pre-push).
-- Partial-file staging (git's `add -p` equivalent); booster operates at whole-
+- Partial-file staging (git's `add -p` equivalent); forge operates at whole-
   file granularity.

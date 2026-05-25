@@ -12,14 +12,14 @@ reminder to push.
 ## Git Protocol
 `post-commit` takes no arguments and receives no stdin. It runs after the
 commit object is created. A non-zero exit does NOT abort the commit (git
-ignores the exit code) but booster will still print the failure.
+ignores the exit code) but forge will still print the failure.
 
 ## Functional Requirements
 
 1. `post-commit` is added to `supportedHooks` and a shim is installed.
 2. Tools run sequentially with `pass_files = false` by default (no staged
    files exist at this point).
-3. booster propagates non-zero exit codes to the terminal for visibility,
+3. forge propagates non-zero exit codes to the terminal for visibility,
    but the commit is already done — no rollback is possible or attempted.
 4. A banner line makes it clear this runs post-commit:
    ```
@@ -35,7 +35,7 @@ enabled = true
 
 [hooks.post-commit.tools.notify]
 command    = "notify-send"
-args       = ["Committed!", "booster: commit hook passed"]
+args       = ["Committed!", "forge: commit hook passed"]
 pass_files = false
 on_failure = "continue"     # never block on notification failure
 ```

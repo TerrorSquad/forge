@@ -2,7 +2,7 @@
 
 ## Summary
 Provide a reproducible, cross-platform release pipeline that lets users install
-`booster` in one step via standard package managers or a curl script.
+`forge` in one step via standard package managers or a curl script.
 
 ## Distribution Channels
 
@@ -21,7 +21,7 @@ Provide a reproducible, cross-platform release pipeline that lets users install
 - `windows/amd64`
 
 ### Release artifacts
-- Single static binary per platform, named `booster-<os>-<arch>[.exe]`
+- Single static binary per platform, named `forge-<os>-<arch>[.exe]`
 - SHA-256 checksums file `checksums.txt`
 - GitHub Release with changelog extracted from CHANGELOG.md
 
@@ -31,7 +31,7 @@ Provide a reproducible, cross-platform release pipeline that lets users install
 
 ### Standalone installer
 ```sh
-curl -fsSL https://raw.githubusercontent.com/TerrorSquad/gobooster/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/TerrorSquad/forge/main/install.sh | sh
 ```
 - Detects OS/arch.
 - Downloads the matching binary from the latest GitHub Release.

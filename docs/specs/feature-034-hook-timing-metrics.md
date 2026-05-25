@@ -13,8 +13,8 @@ to enable caching or parallel execution.
 
 ## Data Model
 
-Metrics are stored in `.booster/metrics.jsonl` (newline-delimited JSON, one
-record per hook run, gitignored by `booster install`).
+Metrics are stored in `.forge/metrics.jsonl` (newline-delimited JSON, one
+record per hook run, gitignored by `forge install`).
 
 ```json
 {
@@ -32,10 +32,10 @@ record per hook run, gitignored by `booster install`).
 
 ## CLI Interface
 
-### `booster metrics`
+### `forge metrics`
 
 ```
-$ booster metrics
+$ forge metrics
 
 pre-commit  (last 30 runs, avg 8.4s)
   ecs           avg  340ms  p95  450ms
@@ -52,7 +52,7 @@ pre-push  (last 12 runs, avg 14.2s)
   openapi-gen   avg  3.4s   p95  4.8s
 ```
 
-### `booster metrics --tool phpstan`
+### `forge metrics --tool phpstan`
 
 Show sparkline history for a single tool (last 20 runs).
 
@@ -62,15 +62,15 @@ phpstan  (pre-commit)
   ↑ cache hits (near zero)    ↑ regression: +0.8s over last 5 runs
 ```
 
-### `booster metrics reset`
+### `forge metrics reset`
 
-Clear `.booster/metrics.jsonl`.
+Clear `.forge/metrics.jsonl`.
 
 ## Functional Requirements
 
 1. Metrics are appended at the end of every hook run (pass or fail).
 2. Append is atomic (write temp + rename) and never blocks or fails the hook.
-3. `booster metrics` reads up to the last 100 run records per hook.
+3. `forge metrics` reads up to the last 100 run records per hook.
 4. Slow tool threshold: warn if a tool's p95 exceeds **3s** (configurable).
 5. Regression detection: warn if the last 5-run average is >20% higher than
    the previous 5-run average for any tool.
@@ -78,7 +78,7 @@ Clear `.booster/metrics.jsonl`.
    - Tool avg > 3s and `cache = false` → suggest enabling cache.
    - Total time > 10s and `parallel = false` → suggest parallel execution.
    - A tool's p95 > 2× avg → suggest investigating flakiness.
-7. `BOOSTER_NO_METRICS=1` disables all metric collection.
+7. `FORGE_NO_METRICS=1` disables all metric collection.
 
 ## Config
 

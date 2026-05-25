@@ -36,5 +36,5 @@ pre-commit
 ## Non-Functional Requirements
 - Must work on macOS, Linux, and Windows (Windows: disable colors unless
   `TERM` or `FORCE_COLOR` is set, or VT processing is available).
-- Must not break existing `booster run` output parsing in scripts that
+- Must not break existing `forge run` output parsing in scripts that
   grep for tool names.

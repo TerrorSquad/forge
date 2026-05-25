@@ -1,4 +1,4 @@
 [[rule]]
-name = "booster"
-include = ["**/booster.toml"]
-url = "file:./internal/booster/schema/booster.schema.json"
+name = "forge"
+include = ["**/forge.toml"]
+url = "file:./internal/forge/schema/forge.schema.json"

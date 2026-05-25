@@ -1,13 +1,13 @@
 # Feature 039: Config Inheritance (`extends`)
 
 ## Summary
-Allow a `booster.toml` to inherit from a base config — a local path or a
+Allow a `forge.toml` to inherit from a base config — a local path or a
 remote URL — so organizations can publish a shared standard config and
 individual projects override only what they need.
 
 ## Motivation
 In a multi-repo organization, every project starts by copy-pasting the same
-booster.toml. When the organization wants to add a new required tool (e.g.
+forge.toml. When the organization wants to add a new required tool (e.g.
 a security scanner), someone has to update every repo manually. With `extends`,
 the shared config is the source of truth and projects can opt in to overrides
 without forking.
@@ -16,10 +16,10 @@ without forking.
 
 ```toml
 # Inherit from an organization-shared config (fetched and cached locally).
-extends = "https://raw.githubusercontent.com/myorg/standards/main/booster.toml"
+extends = "https://raw.githubusercontent.com/myorg/standards/main/forge.toml"
 
 # Or inherit from a local path (monorepo use case).
-extends = "../../shared/booster.toml"
+extends = "../../shared/forge.toml"
 
 # Override only what differs from the base.
 [hooks.pre-commit.tools.phpstan]
@@ -29,7 +29,7 @@ args = ["analyse", "--level=8"]   # stricter than the org default of level=5
 ### Multiple Inheritance (ordered, last wins)
 ```toml
 extends = [
-  "https://cdn.myorg.com/booster/base.toml",
+  "https://cdn.myorg.com/forge/base.toml",
   "./local-overrides.toml"
 ]
 ```
@@ -37,7 +37,7 @@ extends = [
 ## Merge Semantics
 
 The resolved config is the result of deep-merging all inherited configs in
-order, with the local `booster.toml` having the highest priority.
+order, with the local `forge.toml` having the highest priority.
 
 | Config key | Merge behaviour |
 |------------|----------------|
@@ -55,13 +55,13 @@ enabled = false   # this project opts out of mutation testing
 
 ## Remote Config Caching
 
-- Remote URLs are fetched on `booster install` and cached in
-  `.booster/extends-cache/<hash>.toml`.
-- Cache TTL is 24 hours by default. `booster update-extends` refreshes
+- Remote URLs are fetched on `forge install` and cached in
+  `.forge/extends-cache/<hash>.toml`.
+- Cache TTL is 24 hours by default. `forge update-extends` refreshes
   manually.
 - If the remote is unreachable and a cache exists, the cached version is used
   with a warning.
-- If the remote is unreachable and no cache exists, booster aborts with a
+- If the remote is unreachable and no cache exists, forge aborts with a
   clear error.
 
 ```toml
@@ -73,30 +73,30 @@ offline_mode = "warn"   # or "fail" — what to do when remote is unreachable
 ## Security
 
 - Remote URLs must be HTTPS (no HTTP unless `allow_insecure = true`).
-- Content is stored as-is; booster does NOT execute remote config, only merges
+- Content is stored as-is; forge does NOT execute remote config, only merges
   TOML structure.
-- `booster doctor --extends` prints the resolved merged config for review.
+- `forge doctor --extends` prints the resolved merged config for review.
 - SHA256 pinning:
   ```toml
   extends = { url = "https://...", sha256 = "abc123" }
   ```
 
-## `booster doctor --extends`
+## `forge doctor --extends`
 
 Shows the full resolved config after inheritance:
 ```
-$ booster doctor --extends
+$ forge doctor --extends
 
 Resolved config (3 layers):
-  1. https://cdn.myorg.com/booster/base.toml  (cached 2h ago)
+  1. https://cdn.myorg.com/forge/base.toml  (cached 2h ago)
   2. ./local-overrides.toml
-  3. ./booster.toml                           (this project)
+  3. ./forge.toml                           (this project)
 
 pre-commit tools (resolved):
   ecs          → base.toml            args: ["check", "--fix"]
-  phpstan      → booster.toml         args: ["analyse", "--level=8"]  (overrides base level=5)
+  phpstan      → forge.toml         args: ["analyse", "--level=8"]  (overrides base level=5)
   psalm        → base.toml
-  infection    → base.toml            [DISABLED by booster.toml]
+  infection    → base.toml            [DISABLED by forge.toml]
 ```
 
 ## Out of Scope

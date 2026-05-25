@@ -1,7 +1,7 @@
-# Feature 040: `booster explain` — Tool Documentation
+# Feature 040: `forge explain` — Tool Documentation
 
 ## Summary
-Add `booster explain <tool>` and `booster explain <hook>` commands that print
+Add `forge explain <tool>` and `forge explain <hook>` commands that print
 human-readable documentation about a configured tool: what it does, which env
 vars skip it, what SKIP controls exist, and why it was added (from an optional
 `description` field in config).
@@ -9,23 +9,23 @@ vars skip it, what SKIP controls exist, and why it was added (from an optional
 ## Motivation
 New developers joining a project see opaque tool names in the hook output
 (`✗ deptrac`) but don't know what deptrac is, why it's there, or how to
-temporarily skip it. `booster explain` turns the config into living
+temporarily skip it. `forge explain` turns the config into living
 documentation — answering "what is this?" and "how do I get past it?" without
 leaving the terminal.
 
 ## CLI Interface
 
 ```
-booster explain <tool>            # explain a specific tool across all hooks
-booster explain pre-commit        # explain all tools in a hook
-booster explain                   # explain everything (full reference)
-booster explain --hook pre-push   # explain a specific hook's tools
+forge explain <tool>            # explain a specific tool across all hooks
+forge explain pre-commit        # explain all tools in a hook
+forge explain                   # explain everything (full reference)
+forge explain --hook pre-push   # explain a specific hook's tools
 ```
 
 ### Example Output
 
 ```
-$ booster explain phpstan
+$ forge explain phpstan
 
 ╭─ phpstan (pre-commit · group: analysis) ──────────────────────────────────╮
 │ PHPStan — PHP static analysis tool                                         │
@@ -46,7 +46,7 @@ $ booster explain phpstan
 ```
 
 ```
-$ booster explain pre-commit
+$ forge explain pre-commit
 
 pre-commit hook  (7 tools configured)
 
@@ -76,18 +76,18 @@ docs_url    = "https://phpstan.org"
 group       = "analysis"
 ```
 
-When `description` is absent, booster falls back to a built-in knowledge base
+When `description` is absent, forge falls back to a built-in knowledge base
 of well-known tools (phpstan, psalm, eslint, prettier, golangci-lint, etc.).
 
 ## Functional Requirements
 
-1. `booster explain <tool>` searches all configured hooks for the named tool.
+1. `forge explain <tool>` searches all configured hooks for the named tool.
    If found in multiple hooks, shows all.
-2. `booster explain <hook>` lists all tools with one-line summaries.
+2. `forge explain <hook>` lists all tools with one-line summaries.
 3. SKIP variable names are derived automatically from tool names
    (`SKIP_<UPPER_SNAKE(name)>=1`) — no extra config needed.
 4. Group skip vars (feature-035) are listed alongside per-tool vars.
-5. `booster explain` with no args prints a condensed reference of every tool
+5. `forge explain` with no args prints a condensed reference of every tool
    in every hook.
 6. The output respects terminal width (wraps at 80 chars if narrower than 100).
 

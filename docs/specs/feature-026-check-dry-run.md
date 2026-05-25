@@ -1,22 +1,22 @@
 # Feature 026: --check Dry-Run Mode
 
 ## Summary
-`booster run pre-commit --check` runs all tools in read-only mode: no file
+`forge run pre-commit --check` runs all tools in read-only mode: no file
 mutations, no restage, exits non-zero if any tool would have reported
 failures. Designed for CI gates.
 
 ## Motivation
 CI pipelines need to verify hook compliance without side effects. Today there
-is no way to run booster in CI without potentially modifying files or
+is no way to run forge in CI without potentially modifying files or
 restaging them.
 
 ## Functional Requirements
 
-1. `--check` flag is accepted by `booster run`.
+1. `--check` flag is accepted by `forge run`.
 2. In check mode:
    - `restage` is suppressed for all tools.
    - Tools that mutate files (formatters like `gofmt -w`) should ideally be
-     replaced by their check-only equivalent. booster achieves this via a
+     replaced by their check-only equivalent. forge achieves this via a
      per-tool `check_args` override:
      ```toml
      [hooks.pre-commit.tools.gofmt]
@@ -36,7 +36,7 @@ restaging them.
 ## Example CI Usage
 
 ```sh
-booster run pre-commit --check --all-files
+forge run pre-commit --check --all-files
 ```
 
 ## Out of Scope

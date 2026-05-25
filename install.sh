@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
-# install.sh — download and install the booster binary
-# Usage: curl -fsSL https://raw.githubusercontent.com/TerrorSquad/gobooster/main/install.sh | sh
-# Or: curl -fsSL https://raw.githubusercontent.com/TerrorSquad/gobooster/main/install.sh | sh -s -- --version v0.2.0
+# install.sh — download and install the forge binary
+# Usage: curl -fsSL https://raw.githubusercontent.com/TerrorSquad/forge/main/install.sh | sh
+# Or: curl -fsSL https://raw.githubusercontent.com/TerrorSquad/forge/main/install.sh | sh -s -- --version v0.2.0
 set -eu
 
-REPO="TerrorSquad/gobooster"
-INSTALL_DIR="${BOOSTER_INSTALL_DIR:-/usr/local/bin}"
+REPO="TerrorSquad/forge"
+INSTALL_DIR="${FORGE_INSTALL_DIR:-/usr/local/bin}"
 VERSION=""
 
 # Parse flags
@@ -40,24 +40,24 @@ if [ -z "$VERSION" ]; then
     | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
 fi
 
-echo "Installing booster ${VERSION} (${OS}/${ARCH}) to ${INSTALL_DIR}"
+echo "Installing forge ${VERSION} (${OS}/${ARCH}) to ${INSTALL_DIR}"
 
-FILENAME="booster_${VERSION#v}_${OS}_${ARCH}.tar.gz"
+FILENAME="forge_${VERSION#v}_${OS}_${ARCH}.tar.gz"
 URL="https://github.com/${REPO}/releases/download/${VERSION}/${FILENAME}"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-curl -fsSL "$URL" -o "$TMP/booster.tar.gz"
-tar -xzf "$TMP/booster.tar.gz" -C "$TMP"
+curl -fsSL "$URL" -o "$TMP/forge.tar.gz"
+tar -xzf "$TMP/forge.tar.gz" -C "$TMP"
 
 # May need sudo for system dirs
 if [ -w "$INSTALL_DIR" ]; then
-  mv "$TMP/booster" "$INSTALL_DIR/booster"
+  mv "$TMP/forge" "$INSTALL_DIR/forge"
 else
   echo "Need elevated privileges to write to $INSTALL_DIR"
-  sudo mv "$TMP/booster" "$INSTALL_DIR/booster"
+  sudo mv "$TMP/forge" "$INSTALL_DIR/forge"
 fi
 
-chmod +x "$INSTALL_DIR/booster"
-echo "Installed: $("$INSTALL_DIR/booster" --version 2>/dev/null || echo "$INSTALL_DIR/booster")"
+chmod +x "$INSTALL_DIR/forge"
+echo "Installed: $("$INSTALL_DIR/forge" --version 2>/dev/null || echo "$INSTALL_DIR/forge")"

@@ -8,7 +8,7 @@ while feature branches remain fast.
 ## Motivation
 Teams want strict enforcement on `main`/`develop` (full static analysis, all
 tests, no `on_failure=continue`) but lightweight hooks on daily feature
-branches. Today this requires maintaining separate `booster.toml` files or
+branches. Today this requires maintaining separate `forge.toml` files or
 overriding per developer. Branch profiles make this a first-class config
 concept.
 
@@ -56,8 +56,8 @@ skip_hooks  = ["pre-push"]       # skip entire hooks for WIP branches
 4. Profile `skip_hooks` lists hook names whose entire tool list is bypassed.
 5. Profile `skip_tools` lists individual tool names to exclude (additive to
    `skip_hooks`).
-6. `booster status` shows the active profile and which branches it matches.
-7. Profiles have no effect on `booster run` invoked directly (only git
+6. `forge status` shows the active profile and which branches it matches.
+7. Profiles have no effect on `forge run` invoked directly (only git
    hook triggers respect them), unless `--profile <name>` is passed.
 
 ## Example

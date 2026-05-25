@@ -10,7 +10,7 @@ makes hooks near-instant for no-op commits.
 
 ## Cache Design
 
-- Cache file: `.booster/cache.json` (gitignored by booster install).
+- Cache file: `.forge/cache.json` (gitignored by forge install).
 - Key per tool: `sha256(tool_config_json + sorted(file_path:file_hash) list)`.
 - Value: `{ "passed": true, "timestamp": "..." }`.
 - On cache hit: tool is skipped with `- gofmt: cached (12ms saved)`.
@@ -32,13 +32,13 @@ makes hooks near-instant for no-op commits.
    - Any staged file matching the tool's filter changes.
    - The tool's config changes (command, args, extensions, patterns).
    - The tool exits non-zero.
-3. `booster run pre-commit --no-cache` bypasses cache for a single run.
-4. `booster cache clear` deletes `.booster/cache.json`.
+3. `forge run pre-commit --no-cache` bypasses cache for a single run.
+4. `forge cache clear` deletes `.forge/cache.json`.
 5. Corrupted cache file is silently deleted and recreated (never fail a hook
    due to cache errors).
 
 ## Non-Functional Requirements
-- Cache file must not be committed: `booster install` adds `.booster/cache.json`
+- Cache file must not be committed: `forge install` adds `.forge/cache.json`
   to `.git/info/exclude`.
 - Cache reads/writes must be atomic (write to temp file, rename).
 

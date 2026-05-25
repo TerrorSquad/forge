@@ -1,7 +1,7 @@
 # Feature 023: Global User Config
 
 ## Summary
-Support a user-level config at `~/.config/booster/config.toml` that provides
+Support a user-level config at `~/.config/forge/config.toml` that provides
 personal defaults, merged under the repo config.
 
 ## Motivation
@@ -11,7 +11,7 @@ developers set them once globally without touching repo configs.
 
 ## Merge Semantics
 
-1. Load order: global user config → repo `booster.toml` (repo wins on
+1. Load order: global user config → repo `forge.toml` (repo wins on
    conflict).
 2. Merging is shallow at the `[execution]` and `[hooks.<name>.policy]` level:
    - Scalar fields: repo value overrides global.
@@ -24,10 +24,10 @@ developers set them once globally without touching repo configs.
 
 | Platform | Path |
 |----------|------|
-| Linux/macOS | `$XDG_CONFIG_HOME/booster/config.toml` or `~/.config/booster/config.toml` |
-| Windows | `%APPDATA%\booster\config.toml` |
+| Linux/macOS | `$XDG_CONFIG_HOME/forge/config.toml` or `~/.config/forge/config.toml` |
+| Windows | `%APPDATA%\forge\config.toml` |
 
-Override via `BOOSTER_GLOBAL_CONFIG` env var.
+Override via `FORGE_GLOBAL_CONFIG` env var.
 
 ## Example Global Config
 
@@ -44,7 +44,7 @@ append_ticket_footer = false    # personal preference
 ## Functional Requirements
 
 1. Global config is silently ignored if it does not exist.
-2. `booster doctor` reports the global config path and whether it is present.
+2. `forge doctor` reports the global config path and whether it is present.
 3. Invalid global config produces a warning but does not fail the hook.
 
 ## Out of Scope

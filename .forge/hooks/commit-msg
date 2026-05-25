@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+set -eu
+
+# Prefer system-installed binary; fall back to repo-local binary (dev workflow)
+if command -v forge >/dev/null 2>&1; then
+  exec forge run commit-msg "$@"
+fi
+
+# Local dev: repo root has a compiled binary
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+if [ -x "$REPO_ROOT/forge" ]; then
+  exec "$REPO_ROOT/forge" run commit-msg "$@"
+fi
+
+echo "forge not found on PATH and not found at $REPO_ROOT/forge." >&2
+echo "Run: go build -o forge ./cmd/forge" >&2
+exit 1

@@ -32,7 +32,7 @@ pre-commit
 
 1. TUI mode is activated automatically when stdout is a TTY.
 2. When stdout is NOT a TTY (CI, pipes), plain text output is used (feature-017).
-3. `BOOSTER_NO_TUI=1` forces plain text mode.
+3. `FORGE_NO_TUI=1` forces plain text mode.
 4. TUI is disabled in sequential mode if only one tool is configured
    (no value in spinning for a single tool — just print it plainly).
 5. TUI handles terminal resize gracefully.

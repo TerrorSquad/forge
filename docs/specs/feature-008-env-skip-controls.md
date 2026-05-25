@@ -7,7 +7,7 @@ via environment variables, without editing config files.
 ## Motivation
 During hot-fixes, bisects, or manual quality-check sessions developers need a way
 to commit quickly while still keeping the hook pipeline active for normal flow.
-Editing `booster.toml` for a temporary bypass is risky and creates noisy diffs.
+Editing `forge.toml` for a temporary bypass is risky and creates noisy diffs.
 
 ## Functional Requirements
 
@@ -38,4 +38,4 @@ Editing `booster.toml` for a temporary bypass is risky and creates noisy diffs.
 - Every skipped tool must emit a `skipped (<reason>)` line on stdout.
 
 ## Security
-- Skip variables must never be loaded from `booster.toml`; they are runtime-only.
+- Skip variables must never be loaded from `forge.toml`; they are runtime-only.

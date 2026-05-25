@@ -1,17 +1,17 @@
 # Feature 012: Config Migration Tool
 
 ## Summary
-Provide a `booster migrate` command that reads a
+Provide a `forge migrate` command that reads a
 `.git-hooks.config.json` (the custom Husky/zx format) and outputs a valid
-`booster.toml`.
+`forge.toml`.
 
 ## Motivation
 Existing repositories that use the predecessor TypeScript-based hook engine
-should be able to adopt booster without manually transcribing configuration.
+should be able to adopt forge without manually transcribing configuration.
 
 ## Source Format
 The source config follows the JSON schema at:
-`https://raw.githubusercontent.com/TerrorSquad/php-booster/main/booster/.husky/.git-hooks.config.schema.json`
+`https://raw.githubusercontent.com/TerrorSquad/php-forge/main/forge/.husky/.git-hooks.config.schema.json`
 
 Key fields to map:
 
@@ -32,14 +32,14 @@ Key fields to map:
 ## Functional Requirements
 1. Default source path: `.git-hooks.config.json` in repo root.
 2. Accept `--from <path>` flag.
-3. Print generated `booster.toml` to stdout by default.
-4. `--write` flag writes to `booster.toml` (fails if file exists; use
+3. Print generated `forge.toml` to stdout by default.
+4. `--write` flag writes to `forge.toml` (fails if file exists; use
    `--force` to overwrite).
 5. Emit warnings for fields that cannot be automatically mapped.
 
 ## CLI
 ```text
-booster migrate [--from .git-hooks.config.json] [--write] [--force]
+forge migrate [--from .git-hooks.config.json] [--write] [--force]
 ```
 
 ## Out of Scope

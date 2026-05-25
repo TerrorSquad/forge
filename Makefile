@@ -1,4 +1,4 @@
-BINARY     := booster
+BINARY     := forge
 INSTALL    := $(HOME)/.local/bin/$(BINARY)
 BUILD_FLAGS := -ldflags="-s -w" -trimpath
 CGO_ENABLED := 0
@@ -6,7 +6,7 @@ CGO_ENABLED := 0
 .PHONY: build install test clean
 
 build:
-	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_FLAGS) -o $(BINARY) ./cmd/booster
+	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_FLAGS) -o $(BINARY) ./cmd/forge
 
 install: build
 	cp $(BINARY) $(INSTALL)

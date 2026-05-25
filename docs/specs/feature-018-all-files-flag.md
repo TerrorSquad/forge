@@ -1,7 +1,7 @@
 # Feature 018: --all-files Flag
 
 ## Summary
-Add `booster run pre-commit --all-files` to run configured tools against all
+Add `forge run pre-commit --all-files` to run configured tools against all
 tracked files rather than just staged ones.
 
 ## Motivation
@@ -11,7 +11,7 @@ tracked files rather than just staged ones.
 
 ## Functional Requirements
 
-1. `booster run pre-commit --all-files` collects all files tracked by git
+1. `forge run pre-commit --all-files` collects all files tracked by git
    (`git ls-files`) instead of `git diff --cached --name-only`.
 2. All existing file-filtering logic (extensions, include/exclude patterns,
    run_per_file) applies identically.
@@ -25,8 +25,8 @@ tracked files rather than just staged ones.
 ## Example
 
 ```sh
-booster run pre-commit --all-files
-booster run pre-commit --all-files --skip-restage   # explicit (same as default)
+forge run pre-commit --all-files
+forge run pre-commit --all-files --skip-restage   # explicit (same as default)
 ```
 
 ## Non-Functional Requirements

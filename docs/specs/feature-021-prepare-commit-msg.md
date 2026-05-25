@@ -15,7 +15,7 @@ Git invokes `prepare-commit-msg <file> [<source> [<sha1>]]` where `source` is
 
 ## Functional Requirements
 
-1. booster reads `[hooks.prepare-commit-msg.policy]`:
+1. forge reads `[hooks.prepare-commit-msg.policy]`:
    ```toml
    [hooks.prepare-commit-msg]
    enabled = true

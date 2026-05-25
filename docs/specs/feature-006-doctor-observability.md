@@ -7,11 +7,11 @@ Provide a `doctor` command that reports setup status, config resolution, hook in
 Git hook failures are frequently environment/setup issues. A deterministic diagnostic command reduces support burden and time to fix.
 
 ## Functional Requirements
-1. Print path to active `booster` binary.
+1. Print path to active `forge` binary.
 2. Detect and print git repository root.
 3. Print selected config path or explain why config is missing.
 4. Print current `core.hooksPath` value.
-5. If using `.booster/hooks`, report status per managed hook file.
+5. If using `.forge/hooks`, report status per managed hook file.
 6. Identify configured tool commands missing from PATH.
 
 ## UX Requirements

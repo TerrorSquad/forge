@@ -1,4 +1,4 @@
-module github.com/TerrorSquad/gobooster
+module github.com/TerrorSquad/forge
 
 go 1.23.0
 

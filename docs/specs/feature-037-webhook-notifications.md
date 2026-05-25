@@ -30,7 +30,7 @@ only_when = ["fail"]
 
 [notifications.webhook]
 enabled  = true
-url      = "https://my-internal-tool.company.com/hooks/booster"
+url      = "https://my-internal-tool.company.com/hooks/forge"
 method   = "POST"
 headers  = { "Authorization" = "Bearer ${HOOK_TOKEN}" }
 on       = ["pre-push", "pre-commit"]
@@ -50,7 +50,7 @@ Environment variable interpolation (`${VAR}`) is supported in `webhook`,
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": "❌ *booster pre-push failed* on `develop` by @alex\n>  `tests` failed after 12.3s\n> 3 passed · 1 failed"
+        "text": "❌ *forge pre-push failed* on `develop` by @alex\n>  `tests` failed after 12.3s\n> 3 passed · 1 failed"
       }
     }
   ]
@@ -83,9 +83,9 @@ Environment variable interpolation (`${VAR}`) is supported in `webhook`,
 4. `only_when` controls whether to notify on pass, fail, or both.
 5. Sensitive values (webhook URLs, tokens) may be set via env vars:
    `${ENV_VAR_NAME}` syntax in any string config value.
-6. `booster doctor` validates all configured webhook URLs are reachable
+6. `forge doctor` validates all configured webhook URLs are reachable
    (HEAD request with 5s timeout).
-7. `BOOSTER_NO_NOTIFY=1` suppresses all notifications (see feature-029).
+7. `FORGE_NO_NOTIFY=1` suppresses all notifications (see feature-029).
 
 ## Security Considerations
 - Never log webhook URLs or tokens.

@@ -1,6 +1,6 @@
 # Feature Tracker
 
-Track implementation progress for all booster features.
+Track implementation progress for all forge features.
 
 **Legend:**  `✅ Done` · `🔄 In Progress` · `🔲 Not Started` · `⏸ Deferred`
 
@@ -12,7 +12,7 @@ Track implementation progress for all booster features.
 |---|---------|--------|----------|-------|
 | [001](specs/feature-001-cli-command-surface.md) | CLI Command Surface | ✅ Done | P0 | `init`, `install`, `uninstall`, `run`, `doctor` implemented |
 | [002](specs/feature-002-config-and-policy-model.md) | Config and Policy Model | ✅ Done | P0 | TOML loader, tool config, commit-msg policy implemented |
-| [003](specs/feature-003-hook-installation-and-auto-execution.md) | Hook Installation and Auto-Execution | ✅ Done | P0 | Shims written to `.booster/hooks`, `core.hooksPath` set via git config |
+| [003](specs/feature-003-hook-installation-and-auto-execution.md) | Hook Installation and Auto-Execution | ✅ Done | P0 | Shims written to `.forge/hooks`, `core.hooksPath` set via git config |
 | [004](specs/feature-004-pre-commit-runner-engine.md) | Pre-Commit Runner Engine | ✅ Done | P0 | Sequential tool execution, staged-file filtering, restage, on_failure |
 | [005](specs/feature-005-commit-message-policy.md) | Commit Message Policy | ✅ Done | P0 | Conventional commit validation, ticket footer append/require |
 | [006](specs/feature-006-doctor-observability.md) | Doctor and Observability | ✅ Done | P0 | Binary path, repo root, config, hooksPath, missing binaries reported |
@@ -26,28 +26,28 @@ Track implementation progress for all booster features.
 |---|---------|--------|----------|-------|
 | [010](specs/feature-010-backend-execution-routing.md) | Backend Execution Routing | ✅ Done | P1 | `HostBackend`/`DdevBackend` interfaces, DDEV auto-detect via `ddev status`, per-tool `backend` field, global `[execution] default_backend` |
 | [011](specs/feature-011-monorepo-workspace-mode.md) | Monorepo and Workspace Mode | ✅ Done | P1 | `[workspace] members = [...]`, glob expansion, staged-path matching, per-member config fallback |
-| [012](specs/feature-012-config-migration.md) | Config Migration Tool | ✅ Done | P1 | `booster migrate [--from FILE] [--to FILE]` reads `.git-hooks.config.json`, emits booster.toml TOML |
-| [013](specs/feature-013-presets-and-init.md) | Presets and `booster init` Improvements | ✅ Done | P2 | `--preset` flag + `--list-presets`; built-in presets: `node`, `php`, `php-node`, `go`, `minimal` |
-| [014](specs/feature-014-release-distribution.md) | Release and Distribution | ✅ Done | P1 | `.goreleaser.yaml` (multi-platform), CI workflow, release workflow, `install.sh`, `booster version` |
+| [012](specs/feature-012-config-migration.md) | Config Migration Tool | ✅ Done | P1 | `forge migrate [--from FILE] [--to FILE]` reads `.git-hooks.config.json`, emits forge.toml TOML |
+| [013](specs/feature-013-presets-and-init.md) | Presets and `forge init` Improvements | ✅ Done | P2 | `--preset` flag + `--list-presets`; built-in presets: `node`, `php`, `php-node`, `go`, `minimal` |
+| [014](specs/feature-014-release-distribution.md) | Release and Distribution | ✅ Done | P1 | `.goreleaser.yaml` (multi-platform), CI workflow, release workflow, `install.sh`, `forge version` |
 
 ## v2 Features
 
 | # | Feature | Status | Priority | Notes |
 |---|---------|--------|----------|-------|
 | [015](specs/feature-015-parallel-execution.md) | Parallel Execution | ✅ Done | P2 | `[execution] parallel = true`; `depends_on` DAG; wave-based goroutine execution; buffered per-tool output |
-| [016](specs/feature-016-pre-push-runner.md) | Pre-Push Runner | ✅ Done | P1 | Push context parsed from stdin; `BOOSTER_PUSH_REMOTE`/`URL` env vars injected |
+| [016](specs/feature-016-pre-push-runner.md) | Pre-Push Runner | ✅ Done | P1 | Push context parsed from stdin; `FORGE_PUSH_REMOTE`/`URL` env vars injected |
 | [017](specs/feature-017-colored-output-timing.md) | Colored Output and Timing | ✅ Done | P2 | ANSI color, per-tool duration, summary line |
-| [018](specs/feature-018-all-files-flag.md) | `--all-files` Flag | ✅ Done | P2 | `booster run pre-commit --all-files`; uses `git ls-files`; suppresses restage |
+| [018](specs/feature-018-all-files-flag.md) | `--all-files` Flag | ✅ Done | P2 | `forge run pre-commit --all-files`; uses `git ls-files`; suppresses restage |
 | [019](specs/feature-019-per-tool-timeout.md) | Per-Tool Timeout | ✅ Done | P2 | `timeout = "120s"` per tool; `[execution] tool_timeout` global default; context cancellation |
-| [020](specs/feature-020-shell-completions.md) | Shell Completions | ✅ Done | P3 | `booster completion bash\|zsh\|fish`; subcommands, flags, hooks, presets |
+| [020](specs/feature-020-shell-completions.md) | Shell Completions | ✅ Done | P3 | `forge completion bash\|zsh\|fish`; subcommands, flags, hooks, presets |
 | [021](specs/feature-021-prepare-commit-msg.md) | `prepare-commit-msg` Hook | ✅ Done | P2 | Ticket prefix from branch; `skip_on_merge`, `skip_if_present` |
 | [022](specs/feature-022-doctor-fix.md) | `doctor --fix` | ✅ Done | P2 | Auto-reinstalls shims, sets `core.hooksPath`; `--dry-run` support |
-| [023](specs/feature-023-global-user-config.md) | Global User Config | ✅ Done | P2 | `~/.config/booster/config.toml` (XDG); merge semantics — repo wins |
-| [024](specs/feature-024-run-cache.md) | Run Cache | ✅ Done | P2 | SHA-256 content-addressed cache in `.booster/cache.json`; per-tool or global `cache = true`; `booster cache clear`; `--no-cache` flag |
+| [023](specs/feature-023-global-user-config.md) | Global User Config | ✅ Done | P2 | `~/.config/forge/config.toml` (XDG); merge semantics — repo wins |
+| [024](specs/feature-024-run-cache.md) | Run Cache | ✅ Done | P2 | SHA-256 content-addressed cache in `.forge/cache.json`; per-tool or global `cache = true`; `forge cache clear`; `--no-cache` flag |
 | [025](specs/feature-025-remote-presets.md) | Remote Presets | ✅ Done | P3 | `--preset https://...`; HTTPS-only; TOML validation; `--yes`/`CI=true` skip prompt |
-| [026](specs/feature-026-check-dry-run.md) | `--check` Dry-Run Mode | ✅ Done | P3 | `booster run pre-commit --check`; `check_args`/`check_fail_if_output` per tool; `would-fail` status; check-mode summary |
+| [026](specs/feature-026-check-dry-run.md) | `--check` Dry-Run Mode | ✅ Done | P3 | `forge run pre-commit --check`; `check_args`/`check_fail_if_output` per tool; `would-fail` status; check-mode summary |
 | [027](specs/feature-027-post-commit.md) | `post-commit` Hook | ✅ Done | P3 | Informational banner; failures surfaced but commit not aborted; `SKIP_POSTCOMMIT=1` |
-| [028](specs/feature-028-tui-progress.md) | TUI Progress | ✅ Done | P4 | ANSI in-place spinner view; activates on TTY with 2+ tools; `BOOSTER_NO_TUI=1` disables; no external deps |
+| [028](specs/feature-028-tui-progress.md) | TUI Progress | ✅ Done | P4 | ANSI in-place spinner view; activates on TTY with 2+ tools; `FORGE_NO_TUI=1` disables; no external deps |
 
 ## Bonus Features
 
@@ -55,8 +55,8 @@ Track implementation progress for all booster features.
 |---|---------|--------|----------|-------|
 | B1 | `post-merge` Hook | ✅ Done | P3 | Informational; same pattern as `post-commit` |
 | B2 | `post-rewrite` Hook | ✅ Done | P3 | Informational; source passed as first arg |
-| B3 | `booster list` | ✅ Done | P2 | Prints all configured hooks + tools with enabled/disabled state, backend, group |
-| B4 | `booster ci` | ✅ Done | P2 | Opinionated CI alias: `run pre-commit --all-files --check --no-cache` |
+| B3 | `forge list` | ✅ Done | P2 | Prints all configured hooks + tools with enabled/disabled state, backend, group |
+| B4 | `forge ci` | ✅ Done | P2 | Opinionated CI alias: `run pre-commit --all-files --check --no-cache` |
 
 ---
 
@@ -85,9 +85,9 @@ Track implementation progress for all booster features.
 | 2026-05-22 | Run cache is content-addressed (SHA-256 of tool config + file hashes); atomic writes via temp+rename |
 | 2026-05-22 | Global user config merges at execution scalars and per-hook tool maps only; workspace config excluded from merge |
 | 2026-05-22 | Remote presets require `https://` only; content validated as TOML before writing; CI env or `--yes` skips prompt |
-| 2026-05-22 | Feature 029 (booster publish) removed from scope — not needed |
+| 2026-05-22 | Feature 029 (forge publish) removed from scope — not needed |
 | 2026-05-22 | TUI implemented with raw ANSI escape codes instead of bubbletea — Go 1.23 pin + network issues; same visual result with zero new dependencies |
-| 2026-05-22 | `booster ci` is a thin alias for `run pre-commit --all-files --check --no-cache`; CI pipelines get one clean command |
+| 2026-05-22 | `forge ci` is a thin alias for `run pre-commit --all-files --check --no-cache`; CI pipelines get one clean command |
 | 2026-05-22 | B5: graceful binary-not-found skip across all three runners (sequential, TUI, parallel) — mirrors legacy hook behaviour |
-| 2026-05-22 | B6: DeEconnectEconnectApi migrated from Husky/ZX to booster; `booster.toml` committed, `package.json` prepare script updated |
-| 2026-05-22 | B7: `booster migrate` now supports econnect camelCase nested JSON format (`hooks.preCommit`, `stagesFilesAfter`, `runForEachFile`) |
+| 2026-05-22 | B6: DeEconnectEconnectApi migrated from Husky/ZX to forge; `forge.toml` committed, `package.json` prepare script updated |
+| 2026-05-22 | B7: `forge migrate` now supports econnect camelCase nested JSON format (`hooks.preCommit`, `stagesFilesAfter`, `runForEachFile`) |

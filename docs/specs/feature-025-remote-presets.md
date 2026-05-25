@@ -1,7 +1,7 @@
 # Feature 025: Remote Presets
 
 ## Summary
-Allow `booster init --preset <url>` to fetch a `booster.toml` from a remote
+Allow `forge init --preset <url>` to fetch a `forge.toml` from a remote
 URL (raw GitHub, GitLab, any HTTPS endpoint) and use it as the initial config.
 
 ## Motivation
@@ -10,11 +10,11 @@ copy-pasting configs into each repo, teams can point to a shared preset URL.
 
 ## Functional Requirements
 
-1. `booster init --preset https://example.com/presets/php.toml` fetches the
-   URL and writes it to `booster.toml`.
+1. `forge init --preset https://example.com/presets/php.toml` fetches the
+   URL and writes it to `forge.toml`.
 2. Supported URL schemes: `https://` only (no `http://`, no filesystem URLs
    via URL syntax).
-3. Before writing, booster displays the fetched content and the source URL,
+3. Before writing, forge displays the fetched content and the source URL,
    then prompts for confirmation:
    ```
    Fetching: https://example.com/presets/php.toml
@@ -22,7 +22,7 @@ copy-pasting configs into each repo, teams can point to a shared preset URL.
    [hooks.pre-commit]
    ...
    ---------------
-   Write to booster.toml? [y/N]
+   Write to forge.toml? [y/N]
    ```
 4. In non-interactive mode (`CI=true` or `--yes` flag), write without
    prompting.
@@ -32,7 +32,7 @@ copy-pasting configs into each repo, teams can point to a shared preset URL.
    ```toml
    # Fetched from https://example.com/presets/php.toml on 2026-05-22
    ```
-8. `--force` overwrites an existing `booster.toml` without the check.
+8. `--force` overwrites an existing `forge.toml` without the check.
 
 ## Security
 - Only `https://` is allowed to prevent cleartext credential leakage.

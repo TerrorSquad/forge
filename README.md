@@ -1,12 +1,12 @@
-# booster
+# forge
 
 A policy-driven git hook runner — fast, portable, no Node.js required.
 
-## Why booster?
+## Why forge?
 
-Most hook runners (Husky, lint-staged) require Node.js and `package.json`. booster is a single Go binary that works in any project — PHP, Go, Python, or mixed monorepos.
+Most hook runners (Husky, lint-staged) require Node.js and `package.json`. forge is a single Go binary that works in any project — PHP, Go, Python, or mixed monorepos.
 
-| Feature | booster | Husky | lint-staged |
+| Feature | forge | Husky | lint-staged |
 |---------|---------|-------|-------------|
 | Single binary | ✅ | ❌ (needs Node) | ❌ (needs Node) |
 | TOML config | ✅ | ❌ | ❌ |
@@ -23,29 +23,29 @@ Most hook runners (Husky, lint-staged) require Node.js and `package.json`. boost
 ### curl installer (Linux / macOS)
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/TerrorSquad/gobooster/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/TerrorSquad/forge/main/install.sh | sh
 ```
 
 ### go install
 
 ```sh
-go install github.com/TerrorSquad/gobooster/cmd/booster@latest
+go install github.com/TerrorSquad/forge/cmd/forge@latest
 ```
 
 ### Manual download
 
-Download a pre-built binary from [Releases](https://github.com/TerrorSquad/gobooster/releases) and place it on your `PATH`.
+Download a pre-built binary from [Releases](https://github.com/TerrorSquad/forge/releases) and place it on your `PATH`.
 
 ---
 
 ## Quick start
 
 ```sh
-# 1. Create booster.toml
-booster init --preset go       # or: node, php, php-node, minimal
+# 1. Create forge.toml
+forge init --preset go       # or: node, php, php-node, minimal
 
 # 2. Install git hook shims
-booster install
+forge install
 
 # 3. Commit — hooks fire automatically
 git commit -m "feat: my change"
@@ -57,20 +57,20 @@ git commit -m "feat: my change"
 
 | Command | Description |
 |---------|-------------|
-| `booster init [--preset NAME] [--force]` | Create `booster.toml` from a built-in preset |
-| `booster init --list-presets` | List available presets |
-| `booster install` | Write hook shims to `.booster/hooks`, set `core.hooksPath` |
-| `booster uninstall` | Remove shims and restore default `core.hooksPath` |
-| `booster run <hook>` | Run a hook manually (e.g. `booster run pre-commit`) |
-| `booster migrate [--from FILE] [--to FILE]` | Convert `.git-hooks.config.json` → `booster.toml` |
-| `booster doctor` | Diagnose binary, config, hooks, and tool availability |
-| `booster version` | Print version, commit, and build date |
+| `forge init [--preset NAME] [--force]` | Create `forge.toml` from a built-in preset |
+| `forge init --list-presets` | List available presets |
+| `forge install` | Write hook shims to `.forge/hooks`, set `core.hooksPath` |
+| `forge uninstall` | Remove shims and restore default `core.hooksPath` |
+| `forge run <hook>` | Run a hook manually (e.g. `forge run pre-commit`) |
+| `forge migrate [--from FILE] [--to FILE]` | Convert `.git-hooks.config.json` → `forge.toml` |
+| `forge doctor` | Diagnose binary, config, hooks, and tool availability |
+| `forge version` | Print version, commit, and build date |
 
 ---
 
 ## Configuration
 
-`booster.toml` lives at the repo root. Copy `booster.toml.example` to get started.
+`forge.toml` lives at the repo root. Copy `forge.toml.example` to get started.
 
 ### Minimal example
 
@@ -134,7 +134,7 @@ Or per tool: `backend = "ddev"`. Auto-detected when `.ddev/config.yaml` exists a
 members = ["apps/*", "packages/*"]
 ```
 
-When staged files belong to a member directory, booster runs the hook for that member only (using the member's own `booster.toml` if present, otherwise the root config).
+When staged files belong to a member directory, forge runs the hook for that member only (using the member's own `forge.toml` if present, otherwise the root config).
 
 ---
 
@@ -147,7 +147,7 @@ When staged files belong to a member directory, booster runs the hook for that m
 | `SKIP_PREPUSH=1` | Skip the entire `pre-push` hook |
 | `SKIP_<TOOL>=1` | Skip a specific tool (e.g. `SKIP_ESLINT=1`) |
 | `HOOKS_ONLY=format,lint` | Run only tools whose `group` matches |
-| `BOOSTER_CONFIG=path` | Override config file location |
+| `FORGE_CONFIG=path` | Override config file location |
 
 ---
 
@@ -166,10 +166,10 @@ When staged files belong to a member directory, booster runs the hook for that m
 ## Migrating from Husky / `.git-hooks.config.json`
 
 ```sh
-booster migrate --from .git-hooks.config.json --to booster.toml
+forge migrate --from .git-hooks.config.json --to forge.toml
 ```
 
-Reads the legacy JSON format and emits an equivalent `booster.toml`. Review and adjust before running `booster install`.
+Reads the legacy JSON format and emits an equivalent `forge.toml`. Review and adjust before running `forge install`.
 
 ---
 
@@ -180,35 +180,35 @@ Reads the legacy JSON format and emits an equivalent `booster.toml`. Review and 
 ## Build
 
 ```bash
-go build -o booster ./cmd/booster
+go build -o forge ./cmd/forge
 ```
 
 ## Quick Start
 
 ```bash
-# 1) Build or install booster on PATH
-go build -o booster ./cmd/booster
-mv booster /usr/local/bin/
+# 1) Build or install forge on PATH
+go build -o forge ./cmd/forge
+mv forge /usr/local/bin/
 
 # 2) In a git repo
-booster init
-booster install
+forge init
+forge install
 
 # 3) Verify
-booster doctor
+forge doctor
 ```
 
-After `booster install`, git `core.hooksPath` is set to `.booster/hooks`.
+After `forge install`, git `core.hooksPath` is set to `.forge/hooks`.
 Git automatically executes hook shims there on commit/push.
 
 ## Commands
 
 ```text
-booster init [--force]
-booster install
-booster uninstall
-booster run <hook> [--edit FILE]
-booster doctor
+forge init [--force]
+forge install
+forge uninstall
+forge run <hook> [--edit FILE]
+forge doctor
 ```
 
 ## Hook Behavior
@@ -226,7 +226,7 @@ booster doctor
 
 ## Environment Variables
 
-- `BOOSTER_CONFIG`: custom config file path
+- `FORGE_CONFIG`: custom config file path
 - `HOOKS_ONLY`: comma-separated tool groups (example: `lint,format`)
 - `SKIP_PRECOMMIT`, `SKIP_PREPUSH`, `SKIP_COMMITMSG`: skip whole hook
 - `SKIP_<TOOL_NAME>`: skip specific tool, normalized to uppercase snake case
@@ -238,7 +238,7 @@ HOOKS_ONLY=lint git commit -m "fix: lint only"
 SKIP_PHPSTAN=1 git commit -m "chore: bypass phpstan"
 ```
 
-## Config File (`booster.toml`)
+## Config File (`forge.toml`)
 
 Generated starter config:
 

@@ -1,41 +1,41 @@
-# Feature 036: Self-Update (`booster update`)
+# Feature 036: Self-Update (`forge update`)
 
 ## Summary
-Add a `booster update` command that downloads and installs the latest (or a
-specific) release of booster directly, without requiring developers to re-run
+Add a `forge update` command that downloads and installs the latest (or a
+specific) release of forge directly, without requiring developers to re-run
 the install script or use a package manager.
 
 ## Motivation
-Keeping booster up to date across a team today requires each developer to
-re-run the install script whenever a new version is released. `booster update`
+Keeping forge up to date across a team today requires each developer to
+re-run the install script whenever a new version is released. `forge update`
 makes upgrades one command and enables version pinning per project.
 
 ## CLI Interface
 
 ```
-booster update                   # upgrade to latest release
-booster update --version v1.3.2  # install a specific version
-booster update --check           # print latest version without installing
-booster update --rollback        # restore the previous version
+forge update                   # upgrade to latest release
+forge update --version v1.3.2  # install a specific version
+forge update --check           # print latest version without installing
+forge update --rollback        # restore the previous version
 ```
 
 ### Output
 
 ```
-$ booster update
+$ forge update
 Current version: v1.2.0
 Latest version:  v1.3.2
 
-Downloading booster v1.3.2 for linux/amd64... ✓
+Downloading forge v1.3.2 for linux/amd64... ✓
 Verifying checksum (sha256)... ✓
-Backing up current binary to ~/.local/bin/booster.v1.2.0.bak
-Installing to ~/.local/bin/booster... ✓
+Backing up current binary to ~/.local/bin/forge.v1.2.0.bak
+Installing to ~/.local/bin/forge... ✓
 
-booster v1.3.2 installed successfully.
+forge v1.3.2 installed successfully.
 ```
 
 ```
-$ booster update --check
+$ forge update --check
 v1.3.2 available (you have v1.2.0)
 ```
 
@@ -48,23 +48,23 @@ v1.3.2 available (you have v1.2.0)
 3. Previous binary is backed up as `<binary>.prev` before replacement, enabling
    `--rollback`.
 4. `--rollback` restores the `<binary>.prev` backup.
-5. Update respects `BOOSTER_UPDATE_URL` env var for air-gapped / enterprise
+5. Update respects `FORGE_UPDATE_URL` env var for air-gapped / enterprise
    environments pointing to an internal mirror.
-6. `booster update --check` is non-destructive and exits 0 if up to date,
+6. `forge update --check` is non-destructive and exits 0 if up to date,
    exit 1 if an update is available (useful in CI health checks).
 
 ## Version Pinning per Project
 
 ```toml
 [update]
-pin_version = "v1.3.2"   # booster warns when running a different version
+pin_version = "v1.3.2"   # forge warns when running a different version
 channel     = "stable"   # or "rc" for release candidates
 ```
 
 When `pin_version` is set and the running version differs:
 ```
-⚠ booster v1.2.0 is running but booster.toml pins v1.3.2.
-  Run `booster update --version v1.3.2` to upgrade.
+⚠ forge v1.2.0 is running but forge.toml pins v1.3.2.
+  Run `forge update --version v1.3.2` to upgrade.
 ```
 
 This warning is non-blocking (never fails a hook).
@@ -76,7 +76,7 @@ This warning is non-blocking (never fails a hook).
   "tag_name": "v1.3.2",
   "assets": [
     {
-      "name": "booster_linux_amd64",
+      "name": "forge_linux_amd64",
       "browser_download_url": "https://...",
       "checksum": "sha256:abc123..."
     }
@@ -91,5 +91,5 @@ This warning is non-blocking (never fails a hook).
 
 ## Out of Scope
 - Auto-update on every hook run.
-- Updating project-local booster installs (only the user-installed binary).
+- Updating project-local forge installs (only the user-installed binary).
 - Homebrew / apt / snap package management.

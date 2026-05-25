@@ -34,7 +34,7 @@ Arrow-key navigation, Enter to confirm.
 
 1. Interactive mode activates only when **all** of the following are true:
    - `stdout` is a TTY.
-   - `BOOSTER_NO_INTERACTIVE=1` is NOT set.
+   - `FORGE_NO_INTERACTIVE=1` is NOT set.
    - The tool's `on_failure` is not `"continue"` or `"stop"`.
 2. `on_failure = "stop"` still hard-stops without prompting (respects explicit
    config intent).
@@ -56,7 +56,7 @@ interactive = true   # default: true (auto-detected from TTY)
 
 Global disable:
 ```
-BOOSTER_NO_INTERACTIVE=1 git commit -m "..."
+FORGE_NO_INTERACTIVE=1 git commit -m "..."
 ```
 
 ## Dependencies
