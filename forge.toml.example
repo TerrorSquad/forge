@@ -1,0 +1,40 @@
+# forge.toml.example — copy to forge.toml and adjust for your project
+
+# Optional: repository-wide execution settings
+# [execution]
+# default_backend = "host"  # "host" (default) or "ddev"
+
+# Optional: monorepo workspace mode
+# [workspace]
+# members = ["apps/*", "packages/*"]
+
+[hooks.pre-commit]
+enabled = true
+
+# Node.js project example
+[hooks.pre-commit.tools.prettier]
+command = "prettier"
+args = ["--write", "--ignore-unknown"]
+type = "node"
+extensions = [".js", ".ts", ".json", ".md"]
+restage = true
+group = "format"
+
+[hooks.pre-commit.tools.eslint]
+command = "eslint"
+args = ["--fix", "--cache"]
+type = "node"
+extensions = [".js", ".ts", ".tsx", ".vue"]
+restage = true
+group = "lint"
+
+[hooks.commit-msg]
+enabled = true
+
+[hooks.commit-msg.policy]
+conventional_commits = true
+append_ticket_footer = true
+require_ticket = false
+
+[hooks.pre-push]
+enabled = false

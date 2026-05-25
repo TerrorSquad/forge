@@ -22,13 +22,13 @@ func TestInstall_CreatesHookShims(t *testing.T) {
 	}
 
 	for _, hook := range []string{"pre-commit", "commit-msg", "pre-push", "prepare-commit-msg", "post-commit", "post-merge", "post-rewrite"} {
-		shimPath := filepath.Join(dir, ".booster", "hooks", hook)
+		shimPath := filepath.Join(dir, ".forge", "hooks", hook)
 		data, err := os.ReadFile(shimPath)
 		if err != nil {
 			t.Fatalf("missing shim %s: %v", hook, err)
 		}
 		if !strings.Contains(string(data), "forge") {
-			t.Errorf("shim %q does not reference booster, got:\n%s", hook, data)
+			t.Errorf("shim %q does not reference forge, got:\n%s", hook, data)
 		}
 		info, err := os.Stat(shimPath)
 		if err != nil {
@@ -115,7 +115,7 @@ func TestInstall_PrePushShimHasEnvInjection(t *testing.T) {
 		t.Fatalf("InstallHooks: %v", err)
 	}
 
-	shimData, err := os.ReadFile(filepath.Join(dir, ".booster", "hooks", "pre-push"))
+	shimData, err := os.ReadFile(filepath.Join(dir, ".forge", "hooks", "pre-push"))
 	if err != nil {
 		t.Fatalf("ReadFile pre-push: %v", err)
 	}

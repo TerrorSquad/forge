@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// knownHooks lists all hook names booster supports.
+// knownHooks lists all hook names forge supports.
 var knownHooks = []string{
 	"pre-commit",
 	"commit-msg",
@@ -14,7 +14,7 @@ var knownHooks = []string{
 	"post-commit",
 }
 
-// subcommands lists all top-level booster subcommands.
+// subcommands lists all top-level forge subcommands.
 var subcommands = []string{
 	"init",
 	"install",
@@ -47,9 +47,9 @@ func bashCompletion() string {
 	presets := strings.Join(ListPresets(), " ")
 	cmds := strings.Join(subcommands, " ")
 
-	return fmt.Sprintf(`# booster bash completion
-# Install: source this file or add to /etc/bash_completion.d/booster
-# Quick install: booster completion bash > /etc/bash_completion.d/booster
+	return fmt.Sprintf(`# forge bash completion
+# Install: source this file or add to /etc/bash_completion.d/forge
+# Quick install: forge completion bash > /etc/bash_completion.d/forge
 
 _%[1]s_completions() {
   local cur prev words
@@ -98,12 +98,12 @@ func zshCompletion() string {
 	hooks := `"` + strings.Join(knownHooks, `" "`) + `"`
 	presets := `"` + strings.Join(ListPresets(), `" "`) + `"`
 
-	return fmt.Sprintf(`#compdef booster
-# booster zsh completion
-# Install: booster completion zsh > "${fpath[1]}/_booster"
+	return fmt.Sprintf(`#compdef forge
+# forge zsh completion
+# Install: forge completion zsh > "${fpath[1]}/_forge"
 # Then run: compinit
 
-_booster() {
+_forge() {
   local state
 
   _arguments \
@@ -148,47 +148,47 @@ _booster() {
   esac
 }
 
-_booster "$@"
+_forge "$@"
 `, `"init" "install" "uninstall" "run" "migrate" "doctor" "version" "completion" "help"`, hooks, presets)
 }
 
 func fishCompletion() string {
 	var sb strings.Builder
 
-	sb.WriteString("# booster fish completion\n")
-	sb.WriteString("# Install: booster completion fish > ~/.config/fish/completions/booster.fish\n\n")
+	sb.WriteString("# forge fish completion\n")
+	sb.WriteString("# Install: forge completion fish > ~/.config/fish/completions/forge.fish\n\n")
 
 	// Subcommands
 	for _, cmd := range subcommands {
-		sb.WriteString(fmt.Sprintf("complete -c booster -f -n '__fish_use_subcommand' -a %s\n", cmd))
+		sb.WriteString(fmt.Sprintf("complete -c forge -f -n '__fish_use_subcommand' -a %s\n", cmd))
 	}
 	sb.WriteString("\n")
 
 	// run <hook>
 	for _, hook := range knownHooks {
 		sb.WriteString(fmt.Sprintf(
-			"complete -c booster -f -n '__fish_seen_subcommand_from run' -a %s -d 'hook'\n", hook))
+			"complete -c forge -f -n '__fish_seen_subcommand_from run' -a %s -d 'hook'\n", hook))
 	}
-	sb.WriteString("complete -c booster -n '__fish_seen_subcommand_from run' -l all-files -d 'run against all tracked files'\n")
-	sb.WriteString("complete -c booster -n '__fish_seen_subcommand_from run' -l edit -d 'commit message file' -r\n\n")
+	sb.WriteString("complete -c forge -n '__fish_seen_subcommand_from run' -l all-files -d 'run against all tracked files'\n")
+	sb.WriteString("complete -c forge -n '__fish_seen_subcommand_from run' -l edit -d 'commit message file' -r\n\n")
 
 	// init flags
-	sb.WriteString("complete -c booster -n '__fish_seen_subcommand_from init' -l force -d 'overwrite existing config'\n")
-	sb.WriteString("complete -c booster -n '__fish_seen_subcommand_from init' -l list-presets -d 'list presets'\n")
+	sb.WriteString("complete -c forge -n '__fish_seen_subcommand_from init' -l force -d 'overwrite existing config'\n")
+	sb.WriteString("complete -c forge -n '__fish_seen_subcommand_from init' -l list-presets -d 'list presets'\n")
 	for _, p := range ListPresets() {
 		sb.WriteString(fmt.Sprintf(
-			"complete -c booster -n '__fish_seen_subcommand_from init' -l preset -a %s -d 'preset'\n", p))
+			"complete -c forge -n '__fish_seen_subcommand_from init' -l preset -a %s -d 'preset'\n", p))
 	}
 	sb.WriteString("\n")
 
 	// migrate flags
-	sb.WriteString("complete -c booster -n '__fish_seen_subcommand_from migrate' -l from -d 'source file' -r\n")
-	sb.WriteString("complete -c booster -n '__fish_seen_subcommand_from migrate' -l to -d 'output file' -r\n\n")
+	sb.WriteString("complete -c forge -n '__fish_seen_subcommand_from migrate' -l from -d 'source file' -r\n")
+	sb.WriteString("complete -c forge -n '__fish_seen_subcommand_from migrate' -l to -d 'output file' -r\n\n")
 
 	// completion shells
 	for _, s := range []string{"bash", "zsh", "fish"} {
 		sb.WriteString(fmt.Sprintf(
-			"complete -c booster -f -n '__fish_seen_subcommand_from completion' -a %s -d 'shell'\n", s))
+			"complete -c forge -f -n '__fish_seen_subcommand_from completion' -a %s -d 'shell'\n", s))
 	}
 
 	return sb.String()

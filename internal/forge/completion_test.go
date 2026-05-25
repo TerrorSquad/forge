@@ -25,7 +25,7 @@ func TestGenerateCompletion_Zsh(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	for _, want := range []string{
-		"#compdef booster", "pre-commit", "commit-msg", "--all-files", "--preset",
+		"#compdef forge", "pre-commit", "commit-msg", "--all-files", "--preset",
 	} {
 		if !strings.Contains(script, want) {
 			t.Errorf("zsh completion missing %q", want)

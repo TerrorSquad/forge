@@ -20,7 +20,7 @@ func Run(args []string) int {
 		printHelp()
 		return 0
 	case "version", "-v", "--version":
-		fmt.Printf("booster %s (commit: %s, built: %s)\n", Version, Commit, Date)
+		fmt.Printf("forge %s (commit: %s, built: %s)\n", Version, Commit, Date)
 		return 0
 	case "init":
 		fs := flag.NewFlagSet("init", flag.ContinueOnError)
@@ -71,7 +71,7 @@ func Run(args []string) int {
 		return 0
 	case "completion":
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "usage: booster completion <bash|zsh|fish>")
+			fmt.Fprintln(os.Stderr, "usage: forge completion <bash|zsh|fish>")
 			return 2
 		}
 		script, err := GenerateCompletion(args[1])
@@ -102,7 +102,7 @@ func Run(args []string) int {
 
 func runCommand(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: booster run <hook> [--edit FILE]")
+		fmt.Fprintln(os.Stderr, "usage: forge run <hook> [--edit FILE]")
 		return 2
 	}
 
@@ -187,21 +187,21 @@ func migrateCommand(args []string) int {
 }
 
 func printHelp() {
-	fmt.Println(`booster - policy-driven git hook runner
+	fmt.Println(`forge - policy-driven git hook runner
 
 Usage:
-  booster init [--force] [--preset PRESET] [--list-presets]
-  booster install
-  booster uninstall
-  booster run <hook> [--edit FILE] [--all-files] [--check] [--no-cache]
+  forge init [--force] [--preset PRESET] [--list-presets]
+  forge install
+  forge uninstall
+  forge run <hook> [--edit FILE] [--all-files] [--check] [--no-cache]
                      [--tool NAMES] [--group NAMES] [--skip-tool NAMES]
-  booster validate
-  booster list
-  booster ci
-  booster migrate [--from FILE] [--to FILE]
-  booster doctor [--fix] [--dry-run]
-  booster cache clear
-  booster completion <bash|zsh|fish>
+  forge validate
+  forge list
+  forge ci
+  forge migrate [--from FILE] [--to FILE]
+  forge doctor [--fix] [--dry-run]
+  forge cache clear
+  forge completion <bash|zsh|fish>
 
 Run flags:
   --tool phpstan,psalm       only run the named tools
@@ -216,16 +216,16 @@ Presets:
   node, php, php-node, go, minimal
 
 Examples:
-  booster init --preset go
-  booster install
-  booster run pre-commit
-  booster run pre-commit --tool phpstan
-  booster run pre-commit --group analysis --all-files
-  booster run pre-commit --skip-tool psalm
-  booster run pre-commit --check --all-files
-  booster list
-  booster ci
-  booster cache clear`)
+  forge init --preset go
+  forge install
+  forge run pre-commit
+  forge run pre-commit --tool phpstan
+  forge run pre-commit --group analysis --all-files
+  forge run pre-commit --skip-tool psalm
+  forge run pre-commit --check --all-files
+  forge list
+  forge ci
+  forge cache clear`)
 }
 
 func splitCSV(s string) []string {
@@ -245,7 +245,7 @@ func splitCSV(s string) []string {
 
 func cacheCommand(args []string) int {
 	if len(args) == 0 || args[0] != "clear" {
-		fmt.Fprintln(os.Stderr, "usage: booster cache clear")
+		fmt.Fprintln(os.Stderr, "usage: forge cache clear")
 		return 2
 	}
 	repoRoot, err := detectRepoRoot()

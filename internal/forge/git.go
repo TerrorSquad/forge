@@ -95,7 +95,7 @@ func allTrackedFiles(repoRoot string) ([]string, error) {
 	return res, nil
 }
 
-const stashLabel = "booster-pre-commit-safety"
+const stashLabel = "forge-pre-commit-safety"
 
 // hasUnstagedChanges returns true when there are unstaged modifications to
 // tracked files or untracked files in the working tree.

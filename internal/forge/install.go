@@ -16,14 +16,14 @@ func InstallHooks() error {
 		return err
 	}
 
-	hooksDir := filepath.Join(repoRoot, ".booster", "hooks")
+	hooksDir := filepath.Join(repoRoot, ".forge", "hooks")
 	if err := os.MkdirAll(hooksDir, 0755); err != nil {
 		return err
 	}
 
 	exeName := "forge"
 	if runtime.GOOS == "windows" {
-		exeName = "booster.exe"
+		exeName = "forge.exe"
 	}
 
 	for _, hook := range supportedHooks {
@@ -87,7 +87,7 @@ func UninstallHooks() error {
 		fmt.Println("core.hooksPath is not .forge/hooks; leaving git config untouched")
 	}
 
-	hooksDir := filepath.Join(repoRoot, ".booster", "hooks")
+	hooksDir := filepath.Join(repoRoot, ".forge", "hooks")
 	if err := os.RemoveAll(hooksDir); err != nil {
 		return err
 	}
@@ -117,8 +117,8 @@ if [ -x "$REPO_ROOT/%s" ]; then%s
   exec "$REPO_ROOT/%s" run %s "$@"
 fi
 
-echo "booster not found on PATH and not found at $REPO_ROOT/%s." >&2
-echo "Run: go build -o booster ./cmd/forge" >&2
+echo "forge not found on PATH and not found at $REPO_ROOT/%s." >&2
+echo "Run: go build -o forge ./cmd/forge" >&2
 exit 1
 `, exeName, prePushEnv, exeName, hook, exeName, prePushEnv, exeName, hook, exeName)
 }
@@ -127,8 +127,8 @@ exit 1
 // .taplo.toml so that Even Better TOML (and any Taplo-based editor) automatically
 // provides schema validation and completion for forge.toml.
 func installSchema(repoRoot string) error {
-	boosterDir := filepath.Join(repoRoot, ".booster")
-	schemaPath := filepath.Join(boosterDir, "forge.schema.json")
+	forgeDir := filepath.Join(repoRoot, ".forge")
+	schemaPath := filepath.Join(forgeDir, "forge.schema.json")
 
 	if err := os.WriteFile(schemaPath, []byte(SchemaJSON), 0644); err != nil {
 		return fmt.Errorf("write schema: %w", err)

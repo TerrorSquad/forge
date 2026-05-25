@@ -321,7 +321,7 @@ func LoadConfig(repoRoot string) (*Config, string, error) {
 		return &cfg, p, nil
 	}
 
-	return nil, "", fmt.Errorf("no config found; run 'booster init' to create forge.toml")
+	return nil, "", fmt.Errorf("no config found; run 'forge init' to create forge.toml")
 }
 
 // globalConfigPath returns the path to the user-level global config.

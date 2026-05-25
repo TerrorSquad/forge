@@ -21,7 +21,7 @@ func DoctorWithOptions(opts DoctorOptions) error {
 	if err != nil {
 		exe = "unknown"
 	}
-	fmt.Printf("booster binary: %s\n", exe)
+	fmt.Printf("forge binary: %s\n", exe)
 
 	repoRoot, err := detectRepoRoot()
 	if err != nil {
@@ -42,9 +42,9 @@ func DoctorWithOptions(opts DoctorOptions) error {
 	if cfgErr != nil {
 		fmt.Printf("config: missing (%v)\n", cfgErr)
 		if opts.Fix && !opts.DryRun {
-			fmt.Printf("  → run 'booster init' to create forge.toml\n")
+			fmt.Printf("  → run 'forge init' to create forge.toml\n")
 		} else if opts.Fix && opts.DryRun {
-			fmt.Printf("  [dry-run] would suggest: booster init\n")
+			fmt.Printf("  [dry-run] would suggest: forge init\n")
 		}
 	} else {
 		fmt.Printf("config: %s\n", cfgPath)
@@ -80,7 +80,7 @@ func DoctorWithOptions(opts DoctorOptions) error {
 	if hooksPath == wantHooksPath {
 		anyMissing := false
 		for _, hook := range supportedHooks {
-			p := filepath.Join(repoRoot, ".booster", "hooks", hook)
+			p := filepath.Join(repoRoot, ".forge", "hooks", hook)
 			if _, err := os.Stat(p); err == nil {
 				fmt.Printf("hook %s: installed\n", hook)
 			} else {

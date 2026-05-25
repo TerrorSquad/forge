@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Booster Configuration",
-  "description": "Configuration for gobooster git hooks manager. See: https://github.com/TerrorSquad/gobooster",
+  "title": "Forge Configuration",
+  "description": "Configuration for forge git hooks runner. See: https://github.com/TerrorSquad/forge",
   "type": "object",
   "additionalProperties": false,
   "properties": {
