@@ -178,7 +178,7 @@
         },
         "check_args": {
           "type": "array",
-          "description": "Arguments to use in place of 'args' when booster runs in --check mode (read-only, no fixes).",
+          "description": "Arguments to use in place of 'args' when forge runs in --check mode (read-only, no fixes).",
           "items": { "type": "string" }
         },
         "check_fail_if_output": {

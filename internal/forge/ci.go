@@ -174,7 +174,7 @@ func PrintHookHeaderCI(hookName string) {
 	mode := ciMode()
 	switch mode {
 	case "github":
-		ghaOpenGroup("booster · " + hookName)
+		ghaOpenGroup("forge · " + hookName)
 	default:
 		PrintHookHeader(hookName)
 	}
