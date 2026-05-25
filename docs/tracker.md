@@ -24,7 +24,7 @@ Track implementation progress for all forge features.
 
 | # | Feature | Status | Priority | Notes |
 |---|---------|--------|----------|-------|
-| [010](specs/feature-010-backend-execution-routing.md) | Backend Execution Routing | ✅ Done | P1 | `HostBackend`/`DdevBackend` interfaces, DDEV auto-detect via `ddev status`, per-tool `backend` field, global `[execution] default_backend` |
+| [010](specs/feature-010-backend-execution-routing.md) | Backend Execution Routing | ✅ Done | P1 | `HostBackend`/`DdevBackend` interfaces, DDEV auto-detect via `docker inspect` (reads `.ddev/config.yaml` for container name), per-tool `backend` field, global `[execution] default_backend` |
 | [011](specs/feature-011-monorepo-workspace-mode.md) | Monorepo and Workspace Mode | ✅ Done | P1 | `[workspace] members = [...]`, glob expansion, staged-path matching, per-member config fallback |
 | [012](specs/feature-012-config-migration.md) | Config Migration Tool | ✅ Done | P1 | `forge migrate [--from FILE] [--to FILE]` reads `.git-hooks.config.json`, emits forge.toml TOML |
 | [013](specs/feature-013-presets-and-init.md) | Presets and `forge init` Improvements | ✅ Done | P2 | `--preset` flag + `--list-presets`; built-in presets: `node`, `php`, `php-node`, `go`, `minimal` |
