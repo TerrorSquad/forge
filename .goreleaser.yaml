@@ -73,14 +73,14 @@ release:
   prerelease: auto
   name_template: "{{.ProjectName}} v{{.Version}}"
 
-# Homebrew tap (optional — uncomment when tap repo exists)
-# brews:
-#   - repository:
-#       owner: TerrorSquad
-#       name: homebrew-tap
-#     homepage: https://github.com/TerrorSquad/gobooster
-#     description: Policy-driven git hook runner
-#     directory: Formula
-#     install: bin.install "booster"
-#     test: |
-#       system "#{bin}/booster", "--help"
+brews:
+  - repository:
+      owner: TerrorSquad
+      name: homebrew-tap
+    homepage: https://github.com/TerrorSquad/gobooster
+    description: Policy-driven git hook runner — fast, portable, no Node.js required.
+    license: MIT
+    directory: Formula
+    install: bin.install "forge"
+    test: |
+      system "#{bin}/forge", "version"

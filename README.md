@@ -6,15 +6,15 @@ A policy-driven git hook runner — fast, portable, no Node.js required.
 
 Most hook runners (Husky, lint-staged) require Node.js and `package.json`. forge is a single Go binary that works in any project — PHP, Go, Python, or mixed monorepos.
 
-| Feature | forge | Husky | lint-staged |
-|---------|---------|-------|-------------|
-| Single binary | ✅ | ❌ (needs Node) | ❌ (needs Node) |
-| TOML config | ✅ | ❌ | ❌ |
-| DDEV backend | ✅ | ❌ | ❌ |
-| Monorepo workspace mode | ✅ | ❌ | ✅ |
-| Commit-msg policy | ✅ | ❌ | ❌ |
-| Staged-file filtering | ✅ | ❌ | ✅ |
-| Migration from Husky | ✅ | — | — |
+| Feature | forge | Husky | lint-staged | lefthook |
+|---------|---------|-------|-------------|----------|
+| Single binary | ✅ | ❌ (needs Node) | ❌ (needs Node) | ✅ |
+| TOML config | ✅ | ❌ | ❌ | ✅ (YAML) |
+| DDEV backend | ✅ | ❌ | ❌ | ❌ |
+| Monorepo workspace mode | ✅ | ❌ | ✅ | ✅ |
+| Commit-msg policy | ✅ | ❌ | ❌ | ❌ |
+| Staged-file filtering | ✅ | ❌ | ✅ | ✅ |
+| Migration from Husky | ✅ | — | — | ❌ |
 
 ---
 
@@ -125,7 +125,7 @@ require_ticket       = false   # fail if branch has no ticket
 default_backend = "ddev"   # route all tools through `ddev exec`
 ```
 
-Or per tool: `backend = "ddev"`. Auto-detected when `.ddev/config.yaml` exists and `ddev status` reports running.
+Or per tool: `backend = "ddev"`. Auto-detected when `.ddev/config.yaml` exists and the DDEV container is running (checked via `docker inspect`).
 
 ### Monorepo workspace mode
 
