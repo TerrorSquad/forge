@@ -3,6 +3,8 @@ package forge
 import (
 	"fmt"
 	"strings"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
 )
 
 // knownHooks lists all hook names forge supports.
@@ -44,7 +46,7 @@ func GenerateCompletion(shell string) (string, error) {
 
 func bashCompletion() string {
 	hooks := strings.Join(knownHooks, " ")
-	presets := strings.Join(ListPresets(), " ")
+	presets := strings.Join(config.ListPresets(), " ")
 	cmds := strings.Join(subcommands, " ")
 
 	return fmt.Sprintf(`# forge bash completion
@@ -96,7 +98,7 @@ complete -F _%[1]s_completions %[1]s
 
 func zshCompletion() string {
 	hooks := `"` + strings.Join(knownHooks, `" "`) + `"`
-	presets := `"` + strings.Join(ListPresets(), `" "`) + `"`
+	presets := `"` + strings.Join(config.ListPresets(), `" "`) + `"`
 
 	return fmt.Sprintf(`#compdef forge
 # forge zsh completion
@@ -175,7 +177,7 @@ func fishCompletion() string {
 	// init flags
 	sb.WriteString("complete -c forge -n '__fish_seen_subcommand_from init' -l force -d 'overwrite existing config'\n")
 	sb.WriteString("complete -c forge -n '__fish_seen_subcommand_from init' -l list-presets -d 'list presets'\n")
-	for _, p := range ListPresets() {
+	for _, p := range config.ListPresets() {
 		sb.WriteString(fmt.Sprintf(
 			"complete -c forge -n '__fish_seen_subcommand_from init' -l preset -a %s -d 'preset'\n", p))
 	}

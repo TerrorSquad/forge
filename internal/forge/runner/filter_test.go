@@ -1,13 +1,14 @@
-package forge
+package runner
 
 import (
+	"github.com/TerrorSquad/forge/internal/forge/config"
 	"testing"
 )
 
 func TestFilterFiles_ByExtension(t *testing.T) {
 	files := []string{"main.go", "main_test.go", "README.md", "app.ts"}
 
-	tool := ToolConfig{Extensions: []string{".go"}}
+	tool := config.ToolConfig{Extensions: []string{".go"}}
 	got := filterFiles(files, tool)
 
 	want := []string{"main.go", "main_test.go"}
@@ -16,28 +17,28 @@ func TestFilterFiles_ByExtension(t *testing.T) {
 
 func TestFilterFiles_NoExtensionFilter(t *testing.T) {
 	files := []string{"a.go", "b.ts", "c.php"}
-	tool := ToolConfig{}
+	tool := config.ToolConfig{}
 	got := filterFiles(files, tool)
 	assertStringSlice(t, got, files)
 }
 
 func TestFilterFiles_IncludePattern(t *testing.T) {
 	files := []string{"src/main.go", "cmd/forge/main.go", "docs/README.md"}
-	tool := ToolConfig{IncludePatterns: []string{"src/*"}}
+	tool := config.ToolConfig{IncludePatterns: []string{"src/*"}}
 	got := filterFiles(files, tool)
 	assertStringSlice(t, got, []string{"src/main.go"})
 }
 
 func TestFilterFiles_ExcludePattern(t *testing.T) {
 	files := []string{"main.go", "main_test.go", "generated.go"}
-	tool := ToolConfig{ExcludePatterns: []string{"*_test.go"}}
+	tool := config.ToolConfig{ExcludePatterns: []string{"*_test.go"}}
 	got := filterFiles(files, tool)
 	assertStringSlice(t, got, []string{"generated.go", "main.go"})
 }
 
 func TestFilterFiles_ExtensionAndExclude(t *testing.T) {
 	files := []string{"a.go", "b_test.go", "c.ts"}
-	tool := ToolConfig{
+	tool := config.ToolConfig{
 		Extensions:      []string{".go"},
 		ExcludePatterns: []string{"*_test.go"},
 	}
@@ -46,7 +47,7 @@ func TestFilterFiles_ExtensionAndExclude(t *testing.T) {
 }
 
 func TestFilterFiles_Empty(t *testing.T) {
-	tool := ToolConfig{Extensions: []string{".go"}}
+	tool := config.ToolConfig{Extensions: []string{".go"}}
 	got := filterFiles(nil, tool)
 	if len(got) != 0 {
 		t.Errorf("expected empty, got %v", got)
@@ -55,7 +56,7 @@ func TestFilterFiles_Empty(t *testing.T) {
 
 func TestFilterFiles_CaseInsensitiveExtension(t *testing.T) {
 	files := []string{"Main.GO", "other.ts"}
-	tool := ToolConfig{Extensions: []string{".go"}}
+	tool := config.ToolConfig{Extensions: []string{".go"}}
 	got := filterFiles(files, tool)
 	if len(got) != 1 {
 		t.Errorf("expected 1 match for case-insensitive ext, got %v", got)

@@ -1,4 +1,4 @@
-package forge
+package git
 
 import (
 	"bytes"
@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-func runGit(repoRoot string, args ...string) (string, error) {
+// RunGit runs a git command in repoRoot and returns combined stdout.
+func RunGit(repoRoot string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = repoRoot
 	var out bytes.Buffer
@@ -22,7 +23,8 @@ func runGit(repoRoot string, args ...string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
-func detectRepoRoot() (string, error) {
+// DetectRepoRoot returns the absolute path of the git repository root.
+func DetectRepoRoot() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 	var out bytes.Buffer
 	var stderr bytes.Buffer
@@ -34,8 +36,9 @@ func detectRepoRoot() (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
-func stagedFiles(repoRoot string) ([]string, error) {
-	out, err := runGit(repoRoot, "diff", "--cached", "--name-only", "--diff-filter=ACMR")
+// StagedFiles returns the list of staged files (ACMR filter).
+func StagedFiles(repoRoot string) ([]string, error) {
+	out, err := RunGit(repoRoot, "diff", "--cached", "--name-only", "--diff-filter=ACMR")
 	if err != nil {
 		return nil, err
 	}
@@ -53,31 +56,34 @@ func stagedFiles(repoRoot string) ([]string, error) {
 	return res, nil
 }
 
-func currentBranch(repoRoot string) (string, error) {
-	return runGit(repoRoot, "rev-parse", "--abbrev-ref", "HEAD")
+// CurrentBranch returns the current branch name.
+func CurrentBranch(repoRoot string) (string, error) {
+	return RunGit(repoRoot, "rev-parse", "--abbrev-ref", "HEAD")
 }
 
-func addFiles(repoRoot string, files []string) error {
+// AddFiles stages the given file paths.
+func AddFiles(repoRoot string, files []string) error {
 	if len(files) == 0 {
 		return nil
 	}
 	args := []string{"add", "--"}
 	args = append(args, files...)
-	_, err := runGit(repoRoot, args...)
+	_, err := RunGit(repoRoot, args...)
 	return err
 }
 
-func localHooksPath(repoRoot string) (string, error) {
-	out, err := runGit(repoRoot, "config", "--local", "--get", "core.hooksPath")
+// LocalHooksPath returns the configured core.hooksPath, or "" if unset.
+func LocalHooksPath(repoRoot string) (string, error) {
+	out, err := RunGit(repoRoot, "config", "--local", "--get", "core.hooksPath")
 	if err != nil {
 		return "", nil
 	}
 	return out, nil
 }
 
-// allTrackedFiles returns all files tracked by git in the repo (respects .gitignore).
-func allTrackedFiles(repoRoot string) ([]string, error) {
-	out, err := runGit(repoRoot, "ls-files")
+// AllTrackedFiles returns all files tracked by git in the repo.
+func AllTrackedFiles(repoRoot string) ([]string, error) {
+	out, err := RunGit(repoRoot, "ls-files")
 	if err != nil {
 		return nil, err
 	}
@@ -97,57 +103,56 @@ func allTrackedFiles(repoRoot string) ([]string, error) {
 
 const stashLabel = "forge-pre-commit-safety"
 
-// hasUnstagedChanges returns true when there are unstaged modifications to
-// tracked files or untracked files in the working tree.
-func hasUnstagedChanges(repoRoot string) (bool, error) {
-	// Check modified tracked files not yet staged.
-	out, err := runGit(repoRoot, "diff", "--name-only")
+// HasUnstagedChanges returns true when there are unstaged modifications or untracked files.
+func HasUnstagedChanges(repoRoot string) (bool, error) {
+	out, err := RunGit(repoRoot, "diff", "--name-only")
 	if err != nil {
 		return false, err
 	}
 	if strings.TrimSpace(out) != "" {
 		return true, nil
 	}
-	// Check untracked files (non-ignored).
-	out, err = runGit(repoRoot, "ls-files", "--others", "--exclude-standard")
+	out, err = RunGit(repoRoot, "ls-files", "--others", "--exclude-standard")
 	if err != nil {
 		return false, err
 	}
 	return strings.TrimSpace(out) != "", nil
 }
 
-// stashUnstagedChanges stashes the working tree (unstaged changes + untracked
-// files) while keeping the index intact. Returns the stash ref (e.g.
-// "stash@{0}"), whether a stash was actually created, and any error.
-// A stash is NOT created when there is nothing to stash.
-func stashUnstagedChanges(repoRoot string) (stashRef string, created bool, err error) {
+// StashUnstagedChanges stashes working-tree changes while keeping the index.
+// Returns the stash ref, whether a stash was created, and any error.
+func StashUnstagedChanges(repoRoot string) (stashRef string, created bool, err error) {
 	if isTruthy(os.Getenv("FORGE_NO_STASH")) {
 		return "", false, nil
 	}
-	has, err := hasUnstagedChanges(repoRoot)
+	has, err := HasUnstagedChanges(repoRoot)
 	if err != nil || !has {
 		return "", false, err
 	}
-	_, err = runGit(repoRoot, "stash", "push", "--keep-index", "--include-untracked",
+	_, err = RunGit(repoRoot, "stash", "push", "--keep-index", "--include-untracked",
 		"-m", stashLabel)
 	if err != nil {
 		return "", false, fmt.Errorf("stash failed: %w", err)
 	}
-	// Confirm a stash entry was created (git exits 0 even with "No local changes").
-	out, err := runGit(repoRoot, "stash", "list", "--max-count=1")
+	out, err := RunGit(repoRoot, "stash", "list", "--max-count=1")
 	if err != nil || !strings.Contains(out, stashLabel) {
 		return "", false, nil
 	}
 	return "stash@{0}", true, nil
 }
 
-// popStash restores the stash created by stashUnstagedChanges.
-func popStash(repoRoot string) error {
-	_, err := runGit(repoRoot, "stash", "pop", "--index")
+// PopStash restores the stash created by StashUnstagedChanges.
+func PopStash(repoRoot string) error {
+	_, err := RunGit(repoRoot, "stash", "pop", "--index")
 	if err != nil {
 		return fmt.Errorf(
 			"could not restore stashed changes automatically — run 'git stash pop' to restore: %w", err,
 		)
 	}
 	return nil
+}
+
+func isTruthy(v string) bool {
+	v = strings.TrimSpace(strings.ToLower(v))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
 }

@@ -1,4 +1,4 @@
-package forge
+package ui
 
 import (
 	"fmt"
@@ -43,7 +43,6 @@ func isTerminal(f *os.File) bool {
 	if err != nil {
 		return false
 	}
-	// ModeCharDevice set => TTY
 	return (info.Mode() & os.ModeCharDevice) != 0
 }
 
@@ -54,14 +53,24 @@ func colorize(color, s string) string {
 	return color + s + ansiReset
 }
 
-func bold(s string) string   { return colorize(ansiBold, s) }
-func green(s string) string  { return colorize(ansiGreen, s) }
-func red(s string) string    { return colorize(ansiRed, s) }
-func yellow(s string) string { return colorize(ansiYellow, s) }
-func dim(s string) string    { return colorize(ansiDim, s) }
-func cyan(s string) string   { return colorize(ansiCyan, s) }
+// Bold applies bold formatting.
+func Bold(s string) string { return colorize(ansiBold, s) }
 
-// fmtDuration formats a duration as a human-readable string scaled to the magnitude.
+// Green applies green color.
+func Green(s string) string { return colorize(ansiGreen, s) }
+
+// Red applies red color.
+func Red(s string) string { return colorize(ansiRed, s) }
+
+// Yellow applies yellow color.
+func Yellow(s string) string { return colorize(ansiYellow, s) }
+
+// Dim applies dim formatting.
+func Dim(s string) string { return colorize(ansiDim, s) }
+
+// Cyan applies cyan color.
+func Cyan(s string) string { return colorize(ansiCyan, s) }
+
 func fmtDuration(d time.Duration) string {
 	switch {
 	case d < time.Microsecond:
@@ -84,7 +93,6 @@ type ToolResult struct {
 }
 
 // isInteractiveTerminal reports whether the UI writer is a real terminal.
-// Used to suppress inline-overwrite indicators in CI / piped output.
 func isInteractiveTerminal() bool {
 	f, ok := UI.(*os.File)
 	if !ok {
@@ -93,19 +101,16 @@ func isInteractiveTerminal() bool {
 	return isTerminal(f)
 }
 
-// printRunning writes a dim "·  name" indicator without a trailing newline.
-// Call clearRunning() + PrintToolResult() immediately after the tool finishes
-// to overwrite it in-place. Does nothing when not on an interactive terminal.
-func printRunning(name string) {
+// PrintRunning writes a dim "·  name" indicator without a trailing newline.
+func PrintRunning(name string) {
 	if !isInteractiveTerminal() {
 		return
 	}
-	fmt.Fprintf(UI, "  %s  %s", dim("·"), dim(name))
+	fmt.Fprintf(UI, "  %s  %s", Dim("·"), Dim(name))
 }
 
-// clearRunning erases the running indicator on the current line so that
-// PrintToolResult can overwrite it cleanly. No-op on non-interactive terminals.
-func clearRunning() {
+// ClearRunning erases the running indicator on the current line.
+func ClearRunning() {
 	if !isInteractiveTerminal() {
 		return
 	}
@@ -114,7 +119,7 @@ func clearRunning() {
 
 // PrintHookHeader prints the hook name banner.
 func PrintHookHeader(hookName string) {
-	fmt.Fprintf(UI, "\n%s\n", bold(hookName))
+	fmt.Fprintf(UI, "\n%s\n", Bold(hookName))
 }
 
 // PrintToolResult prints a single tool result line.
@@ -123,31 +128,31 @@ func PrintToolResult(r ToolResult) {
 
 	switch r.Status {
 	case "pass":
-		icon = green("✓")
+		icon = Green("✓")
 		nameStr = r.Name
 	case "fail", "would-fail":
-		icon = red("✗")
-		nameStr = red(r.Name)
+		icon = Red("✗")
+		nameStr = Red(r.Name)
 	case "skip":
-		icon = yellow("~")
-		nameStr = dim(r.Name)
+		icon = Yellow("~")
+		nameStr = Dim(r.Name)
 	case "cached":
-		icon = cyan("↩")
-		nameStr = dim(r.Name)
+		icon = Cyan("↩")
+		nameStr = Dim(r.Name)
 	default:
 		icon = " "
 		nameStr = r.Name
 	}
 
 	if r.Duration > 0 {
-		durStr = "  " + dim(fmtDuration(r.Duration))
+		durStr = "  " + Dim(fmtDuration(r.Duration))
 	}
 
 	fmt.Fprintf(UI, "  %s  %-24s%s\n", icon, nameStr, durStr)
 
 	if r.Output != "" {
 		for _, line := range strings.Split(strings.TrimRight(r.Output, "\n"), "\n") {
-			fmt.Fprintf(UI, "     %s\n", dim(line))
+			fmt.Fprintf(UI, "     %s\n", Dim(line))
 		}
 	}
 }
@@ -168,17 +173,17 @@ func PrintSummary(results []ToolResult, total time.Duration) {
 
 	parts := []string{}
 	if passed > 0 {
-		parts = append(parts, green(fmt.Sprintf("%d passed", passed)))
+		parts = append(parts, Green(fmt.Sprintf("%d passed", passed)))
 	}
 	if failed > 0 {
-		parts = append(parts, red(fmt.Sprintf("%d failed", failed)))
+		parts = append(parts, Red(fmt.Sprintf("%d failed", failed)))
 	}
 	if skipped > 0 {
-		parts = append(parts, yellow(fmt.Sprintf("%d skipped", skipped)))
+		parts = append(parts, Yellow(fmt.Sprintf("%d skipped", skipped)))
 	}
-	parts = append(parts, dim(fmt.Sprintf("total %s", fmtDuration(total))))
+	parts = append(parts, Dim(fmt.Sprintf("total %s", fmtDuration(total))))
 
-	fmt.Fprintf(UI, "\n%s\n", strings.Join(parts, dim(" · ")))
+	fmt.Fprintf(UI, "\n%s\n", strings.Join(parts, Dim(" · ")))
 }
 
 // PrintCheckSummary prints a check-mode "would fail" summary line.
@@ -197,15 +202,15 @@ func PrintCheckSummary(results []ToolResult, total time.Duration) {
 
 	parts := []string{}
 	if passed > 0 {
-		parts = append(parts, green(fmt.Sprintf("%d passed", passed)))
+		parts = append(parts, Green(fmt.Sprintf("%d passed", passed)))
 	}
 	if wouldFail > 0 {
-		parts = append(parts, red(fmt.Sprintf("%d would fail", wouldFail)))
+		parts = append(parts, Red(fmt.Sprintf("%d would fail", wouldFail)))
 	}
 	if skipped > 0 {
-		parts = append(parts, yellow(fmt.Sprintf("%d skipped", skipped)))
+		parts = append(parts, Yellow(fmt.Sprintf("%d skipped", skipped)))
 	}
-	parts = append(parts, dim(fmt.Sprintf("total %s", fmtDuration(total))))
+	parts = append(parts, Dim(fmt.Sprintf("total %s", fmtDuration(total))))
 
-	fmt.Fprintf(UI, "\nCheck complete: %s\n", strings.Join(parts, dim(" · ")))
+	fmt.Fprintf(UI, "\nCheck complete: %s\n", strings.Join(parts, Dim(" · ")))
 }

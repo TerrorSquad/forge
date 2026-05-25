@@ -1,6 +1,7 @@
-package forge
+package runner
 
 import (
+	"github.com/TerrorSquad/forge/internal/forge/config"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,16 +10,16 @@ import (
 )
 
 func TestResolveToolTimeout_PerTool(t *testing.T) {
-	tool := ToolConfig{Timeout: "30s"}
-	d := resolveToolTimeout(tool, ExecutionConfig{})
+	tool := config.ToolConfig{Timeout: "30s"}
+	d := resolveToolTimeout(tool, config.ExecutionConfig{})
 	if d != 30*time.Second {
 		t.Errorf("got %v, want 30s", d)
 	}
 }
 
 func TestResolveToolTimeout_GlobalFallback(t *testing.T) {
-	tool := ToolConfig{}
-	execCfg := ExecutionConfig{ToolTimeout: "60s"}
+	tool := config.ToolConfig{}
+	execCfg := config.ExecutionConfig{ToolTimeout: "60s"}
 	d := resolveToolTimeout(tool, execCfg)
 	if d != 60*time.Second {
 		t.Errorf("got %v, want 60s", d)
@@ -26,8 +27,8 @@ func TestResolveToolTimeout_GlobalFallback(t *testing.T) {
 }
 
 func TestResolveToolTimeout_PerToolOverridesGlobal(t *testing.T) {
-	tool := ToolConfig{Timeout: "10s"}
-	execCfg := ExecutionConfig{ToolTimeout: "300s"}
+	tool := config.ToolConfig{Timeout: "10s"}
+	execCfg := config.ExecutionConfig{ToolTimeout: "300s"}
 	d := resolveToolTimeout(tool, execCfg)
 	if d != 10*time.Second {
 		t.Errorf("got %v, want 10s", d)
@@ -35,15 +36,15 @@ func TestResolveToolTimeout_PerToolOverridesGlobal(t *testing.T) {
 }
 
 func TestResolveToolTimeout_Empty(t *testing.T) {
-	d := resolveToolTimeout(ToolConfig{}, ExecutionConfig{})
+	d := resolveToolTimeout(config.ToolConfig{}, config.ExecutionConfig{})
 	if d != 0 {
 		t.Errorf("empty timeout should be 0, got %v", d)
 	}
 }
 
 func TestResolveToolTimeout_InvalidString(t *testing.T) {
-	tool := ToolConfig{Timeout: "notaduration"}
-	d := resolveToolTimeout(tool, ExecutionConfig{})
+	tool := config.ToolConfig{Timeout: "notaduration"}
+	d := resolveToolTimeout(tool, config.ExecutionConfig{})
 	if d != 0 {
 		t.Errorf("invalid duration string should yield 0, got %v", d)
 	}
@@ -130,18 +131,18 @@ func boolPtr(b bool) *bool { return &b }
 func TestRunHookCfg_OnFailureContinue(t *testing.T) {
 	dir := initBareGitRepo(t)
 
-	tool := ToolConfig{
+	tool := config.ToolConfig{
 		Command:   "false", // /usr/bin/false — always exits 1
 		Type:      "system",
 		PassFiles: boolPtr(false),
 		OnFailure: "continue",
 	}
-	cfg := HookConfig{
+	cfg := config.HookConfig{
 		Enabled: boolPtr(true),
-		Tools:   map[string]ToolConfig{"always-fails": tool},
+		Tools:   map[string]config.ToolConfig{"always-fails": tool},
 	}
 
-	err := runHookCfg(dir, "pre-push", "", cfg, ExecutionConfig{}, nil, RunOptions{})
+	err := runHookCfg(dir, "pre-push", "", cfg, config.ExecutionConfig{}, nil, RunOptions{})
 	if err != nil {
 		t.Errorf("on_failure=continue must not block the hook, got: %v", err)
 	}
@@ -152,18 +153,18 @@ func TestRunHookCfg_OnFailureContinue(t *testing.T) {
 func TestRunHookCfg_DefaultFailureFails(t *testing.T) {
 	dir := initBareGitRepo(t)
 
-	tool := ToolConfig{
+	tool := config.ToolConfig{
 		Command:   "false",
 		Type:      "system",
 		PassFiles: boolPtr(false),
 		// no OnFailure → default behaviour: fail the hook
 	}
-	cfg := HookConfig{
+	cfg := config.HookConfig{
 		Enabled: boolPtr(true),
-		Tools:   map[string]ToolConfig{"always-fails": tool},
+		Tools:   map[string]config.ToolConfig{"always-fails": tool},
 	}
 
-	err := runHookCfg(dir, "pre-push", "", cfg, ExecutionConfig{}, nil, RunOptions{})
+	err := runHookCfg(dir, "pre-push", "", cfg, config.ExecutionConfig{}, nil, RunOptions{})
 	if err == nil {
 		t.Error("expected error when tool fails without on_failure=continue")
 	}
@@ -171,7 +172,7 @@ func TestRunHookCfg_DefaultFailureFails(t *testing.T) {
 
 // TestApplyToolFilter_OnlyTools checks that --tool filters to just the named tools.
 func TestApplyToolFilter_OnlyTools(t *testing.T) {
-	tools := map[string]ToolConfig{
+	tools := map[string]config.ToolConfig{
 		"ecs":     {Group: "format"},
 		"phpstan": {Group: "analysis"},
 		"psalm":   {Group: "analysis"},
@@ -186,7 +187,7 @@ func TestApplyToolFilter_OnlyTools(t *testing.T) {
 
 // TestApplyToolFilter_OnlyGroups checks that --group filters by group name.
 func TestApplyToolFilter_OnlyGroups(t *testing.T) {
-	tools := map[string]ToolConfig{
+	tools := map[string]config.ToolConfig{
 		"ecs":     {Group: "format"},
 		"phpstan": {Group: "analysis"},
 		"psalm":   {Group: "analysis"},
@@ -201,7 +202,7 @@ func TestApplyToolFilter_OnlyGroups(t *testing.T) {
 
 // TestApplyToolFilter_SkipTools checks that --skip-tool excludes named tools.
 func TestApplyToolFilter_SkipTools(t *testing.T) {
-	tools := map[string]ToolConfig{
+	tools := map[string]config.ToolConfig{
 		"ecs":     {},
 		"phpstan": {},
 		"psalm":   {},
@@ -233,8 +234,8 @@ func TestShouldSkipGroup(t *testing.T) {
 // TestSafeStashEnabled_AutoDetect checks that safe_stash is auto-enabled when
 // any tool has restage=true.
 func TestSafeStashEnabled_AutoDetect(t *testing.T) {
-	cfg := HookConfig{
-		Tools: map[string]ToolConfig{
+	cfg := config.HookConfig{
+		Tools: map[string]config.ToolConfig{
 			"ecs":     {Restage: true},
 			"phpstan": {Restage: false},
 		},
@@ -247,9 +248,9 @@ func TestSafeStashEnabled_AutoDetect(t *testing.T) {
 // TestSafeStashEnabled_ExplicitFalse checks that safe_stash=false opts out.
 func TestSafeStashEnabled_ExplicitFalse(t *testing.T) {
 	f := false
-	cfg := HookConfig{
+	cfg := config.HookConfig{
 		SafeStash: &f,
-		Tools: map[string]ToolConfig{
+		Tools: map[string]config.ToolConfig{
 			"ecs": {Restage: true},
 		},
 	}
@@ -260,8 +261,8 @@ func TestSafeStashEnabled_ExplicitFalse(t *testing.T) {
 
 // TestSafeStashEnabled_NoRestageTools checks safe_stash is off when no fixers.
 func TestSafeStashEnabled_NoRestageTools(t *testing.T) {
-	cfg := HookConfig{
-		Tools: map[string]ToolConfig{
+	cfg := config.HookConfig{
+		Tools: map[string]config.ToolConfig{
 			"phpstan": {Restage: false},
 			"psalm":   {Restage: false},
 		},

@@ -7,6 +7,18 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
+	"github.com/TerrorSquad/forge/internal/forge/git"
+	"github.com/TerrorSquad/forge/internal/forge/runner"
+	"github.com/TerrorSquad/forge/internal/forge/ui"
+)
+
+// Version information injected at build time via ldflags.
+var (
+	Version = "dev"
+	Commit  = "none"
+	Date    = "unknown"
 )
 
 func Run(args []string) int {
@@ -33,12 +45,12 @@ func Run(args []string) int {
 		}
 		if *listPresets {
 			fmt.Println("Available presets:")
-			for _, p := range ListPresets() {
+			for _, p := range config.ListPresets() {
 				fmt.Printf("  %s\n", p)
 			}
 			return 0
 		}
-		if err := InitConfigWithOptions(*force, *yes, *preset); err != nil {
+		if err := config.InitConfigWithOptions(*force, *yes, *preset); err != nil {
 			fmt.Fprintf(os.Stderr, "init failed: %v\n", err)
 			return 1
 		}
@@ -126,7 +138,7 @@ func runCommand(args []string) int {
 		}
 	}
 
-	opts := RunOptions{
+	opts := runner.RunOptions{
 		AllFiles:   *allFiles,
 		NoCache:    *noCache,
 		CheckMode:  *checkMode,
@@ -138,8 +150,8 @@ func runCommand(args []string) int {
 	if extra := fs.Args(); len(extra) > 1 {
 		opts.Source = extra[1]
 	}
-	if err := RunHookWithOptions(hook, *edit, opts); err != nil {
-		if errors.Is(err, ErrHookSkipped) {
+	if err := runner.RunHookWithOptions(hook, *edit, opts); err != nil {
+		if errors.Is(err, config.ErrHookSkipped) {
 			return 0
 		}
 		fmt.Fprintf(os.Stderr, "run failed: %v\n", err)
@@ -150,19 +162,19 @@ func runCommand(args []string) int {
 }
 
 func validateCommand() int {
-	repoRoot, err := detectRepoRoot()
+	repoRoot, err := git.DetectRepoRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "validate: %v\n", err)
 		return 1
 	}
-	cfg, _, err := LoadConfig(repoRoot)
+	cfg, _, err := config.LoadConfig(repoRoot)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "validate: %v\n", err)
 		return 1
 	}
 	issues := ValidateConfig(cfg)
 	if len(issues) == 0 {
-		fmt.Fprintf(UI, "%s forge.toml is valid\n", green("✓"))
+		fmt.Fprintf(ui.UI, "%s forge.toml is valid\n", ui.Green("✓"))
 		return 0
 	}
 	hasError := PrintValidationIssues(issues)
@@ -179,7 +191,7 @@ func migrateCommand(args []string) int {
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if err := MigrateConfig(*from, *to); err != nil {
+	if err := config.MigrateConfig(*from, *to); err != nil {
 		fmt.Fprintf(os.Stderr, "migrate failed: %v\n", err)
 		return 1
 	}
@@ -248,12 +260,12 @@ func cacheCommand(args []string) int {
 		fmt.Fprintln(os.Stderr, "usage: forge cache clear")
 		return 2
 	}
-	repoRoot, err := detectRepoRoot()
+	repoRoot, err := git.DetectRepoRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cache clear failed: %v\n", err)
 		return 1
 	}
-	if err := ClearCache(repoRoot); err != nil {
+	if err := runner.ClearCache(repoRoot); err != nil {
 		fmt.Fprintf(os.Stderr, "cache clear failed: %v\n", err)
 		return 1
 	}
@@ -263,20 +275,20 @@ func cacheCommand(args []string) int {
 
 // listCommand prints all configured hooks and their tools.
 func listCommand() int {
-	repoRoot, err := detectRepoRoot()
+	repoRoot, err := git.DetectRepoRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "list failed: %v\n", err)
 		return 1
 	}
-	cfg, configPath, err := LoadConfig(repoRoot)
+	cfg, configPath, err := config.LoadConfig(repoRoot)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "list failed: %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(UI, "%s\n\n", dim("config: "+configPath))
+	fmt.Fprintf(ui.UI, "%s\n\n", ui.Dim("config: "+configPath))
 
 	if len(cfg.Hooks) == 0 {
-		fmt.Fprintf(UI, "%s\n", dim("no hooks configured"))
+		fmt.Fprintf(ui.UI, "%s\n", ui.Dim("no hooks configured"))
 		return 0
 	}
 
@@ -289,31 +301,31 @@ func listCommand() int {
 	for _, hookName := range hookNames {
 		hookCfg := cfg.Hooks[hookName]
 		enabled := hookCfg.IsEnabled()
-		statusIcon := green("✓")
+		statusIcon := ui.Green("✓")
 		if !enabled {
-			statusIcon = dim("·")
+			statusIcon = ui.Dim("·")
 		}
 		parallel := ""
-		if isParallelMode(hookCfg, cfg.Execution) {
-			parallel = dim(" [parallel]")
+		if runner.IsParallelMode(hookCfg, cfg.Execution) {
+			parallel = ui.Dim(" [parallel]")
 		}
-		fmt.Fprintf(UI, "%s %s%s\n", statusIcon, bold(hookName), parallel)
+		fmt.Fprintf(ui.UI, "%s %s%s\n", statusIcon, ui.Bold(hookName), parallel)
 
-		toolNames := sortedToolNames(hookCfg.Tools)
+		toolNames := config.SortedToolNames(hookCfg.Tools)
 		for _, toolName := range toolNames {
 			tool := hookCfg.Tools[toolName]
-			backend := ""
+			bknd := ""
 			if tool.Backend != "" {
-				backend = dim(" [" + tool.Backend + "]")
+				bknd = ui.Dim(" [" + tool.Backend + "]")
 			}
-			group := ""
+			grp := ""
 			if tool.Group != "" {
-				group = dim(" group:" + tool.Group)
+				grp = ui.Dim(" group:" + tool.Group)
 			}
-			fmt.Fprintf(UI, "    %s  %s%s%s\n", cyan("→"), toolName, backend, group)
-			fmt.Fprintf(UI, "       %s\n", dim(tool.Command))
+			fmt.Fprintf(ui.UI, "    %s  %s%s%s\n", ui.Cyan("→"), toolName, bknd, grp)
+			fmt.Fprintf(ui.UI, "       %s\n", ui.Dim(tool.Command))
 		}
-		fmt.Fprintln(UI)
+		fmt.Fprintln(ui.UI)
 	}
 	return 0
 }
@@ -321,12 +333,12 @@ func listCommand() int {
 // ciCommand is an opinionated shortcut for CI pipelines:
 // runs pre-commit in check + all-files + no-cache mode.
 func ciCommand() int {
-	if err := RunHookWithOptions("pre-commit", "", RunOptions{
+	if err := runner.RunHookWithOptions("pre-commit", "", runner.RunOptions{
 		AllFiles:  true,
 		CheckMode: true,
 		NoCache:   true,
 	}); err != nil {
-		if errors.Is(err, ErrHookSkipped) {
+		if errors.Is(err, config.ErrHookSkipped) {
 			return 0
 		}
 		fmt.Fprintf(os.Stderr, "ci check failed: %v\n", err)

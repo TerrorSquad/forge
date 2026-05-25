@@ -1,4 +1,4 @@
-package forge
+package ui
 
 import (
 	"fmt"
@@ -22,26 +22,24 @@ func ciMode() string {
 	return ""
 }
 
-// isCI reports whether we are running in any CI environment.
-func isCI() bool {
+// IsCI reports whether we are running in any CI environment.
+func IsCI() bool {
 	return isTruthy(os.Getenv("CI")) || ciMode() != ""
 }
 
-// --- GitHub Actions output helpers ---
+func isTruthy(v string) bool {
+	v = strings.TrimSpace(strings.ToLower(v))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
 
-// ghaOpenGroup emits a collapsible ::group:: block.
 func ghaOpenGroup(title string) {
 	fmt.Fprintf(UI, "::group::%s\n", title)
 }
 
-// ghaCloseGroup closes an open ::group:: block.
 func ghaCloseGroup() {
 	fmt.Fprintf(UI, "::endgroup::\n")
 }
 
-// ghaEmitAnnotations parses tool output for file:line error patterns and emits
-// GitHub Actions ::error:: / ::warning:: workflow commands.
-// Lines that don't match known patterns are emitted as plain ::error:: messages.
 func ghaEmitAnnotations(output, toolName string) {
 	if strings.TrimSpace(output) == "" {
 		return
@@ -59,47 +57,38 @@ func ghaEmitAnnotations(output, toolName string) {
 	}
 }
 
-// errorPattern represents a regex to extract file/line/col/message from a tool's output.
 type errorPattern struct {
 	re    *regexp.Regexp
-	file  string // named group
+	file  string
 	line  string
 	col   string
 	msg   string
-	level string // "error" or "warning"
+	level string
 }
 
-// knownErrorPatterns maps common tool output formats to GitHub Actions annotations.
 var knownErrorPatterns = []errorPattern{
-	// PHPStan: " src/Foo.php:42 - Parameter #1 expects string"
 	{
 		re:   regexp.MustCompile(`^\s*(?P<file>[^:]+\.php):(?P<line>\d+)\s+-\s+(?P<msg>.+)$`),
 		file: "file", line: "line", msg: "msg", level: "error",
 	},
-	// Psalm: "ERROR: InvalidArgument - src/Foo.php:42:10 - ..."
 	{
 		re:   regexp.MustCompile(`^(?P<level>ERROR|INFO|WARNING|SUGGESTION): \w+ - (?P<file>[^:]+):(?P<line>\d+):\d+ - (?P<msg>.+)$`),
 		file: "file", line: "line", msg: "msg", level: "level",
 	},
-	// ESLint: "  42:10  error  message  rule-name"
 	{
 		re:   regexp.MustCompile(`^\s*(?P<line>\d+):(?P<col>\d+)\s+(?P<level>error|warning)\s+(?P<msg>.+?)\s+\S+$`),
 		file: "", line: "line", col: "col", msg: "msg", level: "level",
 	},
-	// golangci-lint / go vet: "src/foo.go:42:10: message"
 	{
 		re:   regexp.MustCompile(`^(?P<file>[^:]+\.go):(?P<line>\d+):(?P<col>\d+):\s*(?P<msg>.+)$`),
 		file: "file", line: "line", col: "col", msg: "msg", level: "error",
 	},
-	// Generic "file.ext:line: message"
 	{
 		re:   regexp.MustCompile(`^(?P<file>[^:]+\.\w+):(?P<line>\d+):\s*(?P<msg>.+)$`),
 		file: "file", line: "line", msg: "msg", level: "error",
 	},
 }
 
-// parseErrorAnnotation tries to parse a line into a GHA workflow command.
-// Returns empty string if no pattern matches.
 func parseErrorAnnotation(line string) string {
 	for _, p := range knownErrorPatterns {
 		m := p.re.FindStringSubmatch(line)
@@ -121,7 +110,7 @@ func parseErrorAnnotation(line string) string {
 
 		level := strings.ToLower(get(p.level))
 		if level == "" {
-			level = p.level // static value
+			level = p.level
 		}
 		if level != "warning" {
 			level = "error"
@@ -167,8 +156,6 @@ func escapeGHAParam(s string) string {
 	return s
 }
 
-// --- CI-aware print functions ---
-
 // PrintHookHeaderCI emits CI-appropriate hook header.
 func PrintHookHeaderCI(hookName string) {
 	mode := ciMode()
@@ -187,7 +174,6 @@ func PrintToolResultCI(r ToolResult, toolName string) {
 		PrintToolResult(r)
 		return
 	}
-	// In GHA mode: always print the plain result line, then emit annotations for failures.
 	PrintToolResult(r)
 	if r.Status == "fail" || r.Status == "would-fail" {
 		ghaEmitAnnotations(r.Output, toolName)

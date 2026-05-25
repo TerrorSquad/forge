@@ -1,45 +1,46 @@
-package forge
+package runner
 
 import (
+	"github.com/TerrorSquad/forge/internal/forge/config"
 	"testing"
 )
 
 func TestIsParallelMode_GlobalDefault(t *testing.T) {
-	hookCfg := HookConfig{}
-	exec := ExecutionConfig{Parallel: true}
-	if !isParallelMode(hookCfg, exec) {
+	hookCfg := config.HookConfig{}
+	exec := config.ExecutionConfig{Parallel: true}
+	if !IsParallelMode(hookCfg, exec) {
 		t.Error("expected parallel=true from global default")
 	}
 }
 
 func TestIsParallelMode_GlobalDisabled(t *testing.T) {
-	hookCfg := HookConfig{}
-	exec := ExecutionConfig{Parallel: false}
-	if isParallelMode(hookCfg, exec) {
+	hookCfg := config.HookConfig{}
+	exec := config.ExecutionConfig{Parallel: false}
+	if IsParallelMode(hookCfg, exec) {
 		t.Error("expected parallel=false when global disabled")
 	}
 }
 
 func TestIsParallelMode_HookOverrideTrue(t *testing.T) {
 	bTrue := true
-	hookCfg := HookConfig{Parallel: &bTrue}
-	exec := ExecutionConfig{Parallel: false}
-	if !isParallelMode(hookCfg, exec) {
+	hookCfg := config.HookConfig{Parallel: &bTrue}
+	exec := config.ExecutionConfig{Parallel: false}
+	if !IsParallelMode(hookCfg, exec) {
 		t.Error("expected hook-level true to override global false")
 	}
 }
 
 func TestIsParallelMode_HookOverrideFalse(t *testing.T) {
 	bFalse := false
-	hookCfg := HookConfig{Parallel: &bFalse}
-	exec := ExecutionConfig{Parallel: true}
-	if isParallelMode(hookCfg, exec) {
+	hookCfg := config.HookConfig{Parallel: &bFalse}
+	exec := config.ExecutionConfig{Parallel: true}
+	if IsParallelMode(hookCfg, exec) {
 		t.Error("expected hook-level false to override global true")
 	}
 }
 
 func TestBuildDependencyLevels_NoDepends(t *testing.T) {
-	tools := map[string]ToolConfig{
+	tools := map[string]config.ToolConfig{
 		"gofmt": {Command: "gofmt"},
 		"govet": {Command: "go vet"},
 	}
@@ -54,7 +55,7 @@ func TestBuildDependencyLevels_NoDepends(t *testing.T) {
 }
 
 func TestBuildDependencyLevels_WithDepends(t *testing.T) {
-	tools := map[string]ToolConfig{
+	tools := map[string]config.ToolConfig{
 		"gofmt":         {Command: "gofmt"},
 		"golangci-lint": {Command: "golangci-lint", DependsOn: []string{"gofmt"}},
 	}
@@ -72,7 +73,7 @@ func TestBuildDependencyLevels_WithDepends(t *testing.T) {
 }
 
 func TestBuildDependencyLevels_MultiLevel(t *testing.T) {
-	tools := map[string]ToolConfig{
+	tools := map[string]config.ToolConfig{
 		"a": {Command: "a"},
 		"b": {Command: "b", DependsOn: []string{"a"}},
 		"c": {Command: "c", DependsOn: []string{"b"}},
@@ -86,7 +87,7 @@ func TestBuildDependencyLevels_MultiLevel(t *testing.T) {
 
 func TestBuildDependencyLevels_MissingDep(t *testing.T) {
 	// If a dep is not in the tools map, it should not panic
-	tools := map[string]ToolConfig{
+	tools := map[string]config.ToolConfig{
 		"a": {Command: "a", DependsOn: []string{"nonexistent"}},
 	}
 	names := []string{"a"}
@@ -98,7 +99,7 @@ func TestBuildDependencyLevels_MissingDep(t *testing.T) {
 
 func TestBuildDependencyLevels_Cycle(t *testing.T) {
 	// Cycle detection should not panic or infinite-loop
-	tools := map[string]ToolConfig{
+	tools := map[string]config.ToolConfig{
 		"a": {Command: "a", DependsOn: []string{"b"}},
 		"b": {Command: "b", DependsOn: []string{"a"}},
 	}

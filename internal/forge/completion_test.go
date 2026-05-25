@@ -3,6 +3,8 @@ package forge
 import (
 	"strings"
 	"testing"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
 )
 
 func TestGenerateCompletion_Bash(t *testing.T) {
@@ -69,7 +71,7 @@ func TestGenerateCompletion_UnknownShell(t *testing.T) {
 func TestGenerateCompletion_ContainsAllPresets(t *testing.T) {
 	for _, shell := range []string{"bash", "zsh", "fish"} {
 		script, _ := GenerateCompletion(shell)
-		for _, p := range ListPresets() {
+		for _, p := range config.ListPresets() {
 			if !strings.Contains(script, p) {
 				t.Errorf("%s completion missing preset %q", shell, p)
 			}

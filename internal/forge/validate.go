@@ -5,6 +5,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
+	"github.com/TerrorSquad/forge/internal/forge/ui"
 )
 
 // IssueLevel indicates severity of a validation finding.
@@ -35,7 +38,7 @@ func (v ValidationIssue) String() string {
 // Issues with level "error" indicate mis-configurations that will cause
 // runtime failures. Issues with level "warn" are best-practice violations.
 // The function never fails fatally — callers decide whether to abort.
-func ValidateConfig(cfg *Config) []ValidationIssue {
+func ValidateConfig(cfg *config.Config) []ValidationIssue {
 	var issues []ValidationIssue
 
 	// Sort hook names for deterministic output.
@@ -48,7 +51,7 @@ func ValidateConfig(cfg *Config) []ValidationIssue {
 	for _, hookName := range hookNames {
 		hookCfg := cfg.Hooks[hookName]
 
-		for _, toolName := range sortedToolNames(hookCfg.Tools) {
+		for _, toolName := range config.SortedToolNames(hookCfg.Tools) {
 			tool := hookCfg.Tools[toolName]
 
 			// Command is required.
@@ -137,7 +140,7 @@ func ValidateConfig(cfg *Config) []ValidationIssue {
 
 // detectDependsCycles returns all cycles found in the depends_on graph.
 // Each cycle is represented as the ordered list of tool names forming the loop.
-func detectDependsCycles(tools map[string]ToolConfig) [][]string {
+func detectDependsCycles(tools map[string]config.ToolConfig) [][]string {
 	const (
 		unvisited = 0
 		inStack   = 1
@@ -171,7 +174,7 @@ func detectDependsCycles(tools map[string]ToolConfig) [][]string {
 		state[name] = done
 	}
 
-	for _, name := range sortedToolNames(tools) {
+	for _, name := range config.SortedToolNames(tools) {
 		if state[name] == unvisited {
 			dfs(name, nil)
 		}
@@ -187,9 +190,9 @@ func PrintValidationIssues(issues []ValidationIssue) bool {
 		switch issue.Level {
 		case IssueError:
 			hasError = true
-			fmt.Fprintf(UI, "%s %s\n", red("✗"), issue.String())
+			fmt.Fprintf(ui.UI, "%s %s\n", ui.Red("✗"), issue.String())
 		case IssueWarn:
-			fmt.Fprintf(UI, "%s %s\n", yellow("⚠"), issue.String())
+			fmt.Fprintf(ui.UI, "%s %s\n", ui.Yellow("⚠"), issue.String())
 		}
 	}
 	return hasError

@@ -3,6 +3,8 @@ package forge
 import (
 	"strings"
 	"testing"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
 )
 
 func TestDoctorWithOptions_NoGitRepo(t *testing.T) {
@@ -27,10 +29,10 @@ func TestDoctorOptions_StructFields(t *testing.T) {
 }
 
 func TestCheckToolAvailability_NoMissingTools(t *testing.T) {
-	cfg := &Config{
-		Hooks: map[string]HookConfig{
+	cfg := &config.Config{
+		Hooks: map[string]config.HookConfig{
 			"pre-commit": {
-				Tools: map[string]ToolConfig{
+				Tools: map[string]config.ToolConfig{
 					"echo-check": {Command: "echo"},
 				},
 			},
@@ -45,10 +47,10 @@ func TestCheckToolAvailability_NoMissingTools(t *testing.T) {
 }
 
 func TestCheckToolAvailability_MissingTool(t *testing.T) {
-	cfg := &Config{
-		Hooks: map[string]HookConfig{
+	cfg := &config.Config{
+		Hooks: map[string]config.HookConfig{
 			"pre-commit": {
-				Tools: map[string]ToolConfig{
+				Tools: map[string]config.ToolConfig{
 					"missing": {Command: "this-tool-definitely-does-not-exist-xyz123"},
 				},
 			},
@@ -67,7 +69,7 @@ func TestCheckToolAvailability_MissingTool(t *testing.T) {
 }
 
 func TestSortedHookNames_Order(t *testing.T) {
-	hooks := map[string]HookConfig{
+	hooks := map[string]config.HookConfig{
 		"pre-push":   {},
 		"commit-msg": {},
 		"pre-commit": {},

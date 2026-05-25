@@ -1,4 +1,4 @@
-package forge
+package config
 
 import (
 	"encoding/json"
@@ -45,11 +45,9 @@ type legacyHooksNested struct {
 }
 
 type legacyHookNested struct {
-	// Tools is a map — we use json.RawMessage + ordered key extraction to preserve declaration order.
 	Tools json.RawMessage `json:"tools"`
 }
 
-// legacyToolNested is one entry in the econnect "tools" map.
 type legacyToolNested struct {
 	Command          string   `json:"command"`
 	Args             []string `json:"args"`
@@ -62,17 +60,14 @@ type legacyToolNested struct {
 	Extensions       []string `json:"extensions"`
 }
 
-// parseOrderedTools parses a JSON object of tools preserving declaration order.
 func parseOrderedTools(raw json.RawMessage) ([]string, map[string]legacyToolNested, error) {
 	if raw == nil {
 		return nil, nil, nil
 	}
-	// Decode into a map for values.
 	var toolMap map[string]legacyToolNested
 	if err := json.Unmarshal(raw, &toolMap); err != nil {
 		return nil, nil, err
 	}
-	// Use json.Decoder token scanning to get ordered keys.
 	dec := json.NewDecoder(strings.NewReader(string(raw)))
 	var order []string
 	depth := 0
@@ -91,7 +86,6 @@ func parseOrderedTools(raw json.RawMessage) ([]string, map[string]legacyToolNest
 		case string:
 			if depth == 1 {
 				order = append(order, v)
-				// skip the value token(s)
 				var discard json.RawMessage
 				if decErr := dec.Decode(&discard); decErr != nil {
 					break
@@ -102,11 +96,9 @@ func parseOrderedTools(raw json.RawMessage) ([]string, map[string]legacyToolNest
 	return order, toolMap, nil
 }
 
-// MigrateConfig reads a .git-hooks.config.json (or its .dist variant) from
-// the given path and emits an equivalent forge.toml to stdout (or the
-// output file when outputPath != "").
+// MigrateConfig reads a .git-hooks.config.json (or its .dist variant) and emits
+// an equivalent forge.toml to outputPath (or stdout when outputPath is "" or "-").
 func MigrateConfig(inputPath, outputPath string) error {
-	// Default input candidates
 	if inputPath == "" {
 		for _, candidate := range []string{
 			".git-hooks.config.json",
@@ -138,7 +130,6 @@ func MigrateConfig(inputPath, outputPath string) error {
 	sb.WriteString("\n# Review and adjust as needed.\n\n")
 
 	if legacy.Hooks != nil {
-		// econnect nested format
 		if err := migrateNestedHookSection(&sb, "pre-commit", legacy.Hooks.PreCommit); err != nil {
 			return err
 		}
@@ -149,7 +140,6 @@ func MigrateConfig(inputPath, outputPath string) error {
 			return err
 		}
 	} else {
-		// original flat format
 		migrateHookSection(&sb, "pre-commit", legacy.PreCommit)
 		migrateHookSection(&sb, "commit-msg", legacy.CommitMsg)
 		migrateHookSection(&sb, "pre-push", legacy.PrePush)
@@ -202,7 +192,6 @@ func migrateHookSection(sb *strings.Builder, hookName string, hook *legacyHook) 
 			}
 			sb.WriteString("]\n")
 		}
-
 		if t.Type != "" {
 			sb.WriteString(fmt.Sprintf("type = %q\n", t.Type))
 		}
@@ -235,7 +224,6 @@ func migrateHookSection(sb *strings.Builder, hookName string, hook *legacyHook) 
 	}
 }
 
-// migrateNestedHookSection handles the econnect format where tools is a named map.
 func migrateNestedHookSection(sb *strings.Builder, hookName string, hook *legacyHookNested) error {
 	if hook == nil {
 		return nil
@@ -312,4 +300,23 @@ func migrateNestedHookSection(sb *strings.Builder, hookName string, hook *legacy
 		sb.WriteString("\n")
 	}
 	return nil
+}
+
+// sanitizeEnvKey converts a name to an uppercase underscore-separated env key.
+func sanitizeEnvKey(name string) string {
+	up := strings.ToUpper(name)
+	b := strings.Builder{}
+	lastUnderscore := false
+	for _, r := range up {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			lastUnderscore = false
+			continue
+		}
+		if !lastUnderscore {
+			b.WriteRune('_')
+			lastUnderscore = true
+		}
+	}
+	return strings.Trim(b.String(), "_")
 }

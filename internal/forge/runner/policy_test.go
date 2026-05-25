@@ -1,6 +1,7 @@
-package forge
+package runner
 
 import (
+	"github.com/TerrorSquad/forge/internal/forge/config"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +14,7 @@ func TestApplyCommitMessagePolicy_ConventionalPass(t *testing.T) {
 	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 	writeFile(t, msgFile, "feat(runner): add parallel execution\n")
 
-	policy := &CommitMessagePolicy{ConventionalCommits: true}
+	policy := &config.CommitMessagePolicy{ConventionalCommits: true}
 	if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -24,7 +25,7 @@ func TestApplyCommitMessagePolicy_ConventionalFail(t *testing.T) {
 	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 	writeFile(t, msgFile, "added some stuff\n")
 
-	policy := &CommitMessagePolicy{ConventionalCommits: true}
+	policy := &config.CommitMessagePolicy{ConventionalCommits: true}
 	if err := applyCommitMessagePolicy(dir, policy, msgFile); err == nil {
 		t.Error("expected error for non-conventional commit")
 	}
@@ -46,7 +47,7 @@ func TestApplyCommitMessagePolicy_EmptyFile(t *testing.T) {
 	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 	writeFile(t, msgFile, "")
 
-	policy := &CommitMessagePolicy{ConventionalCommits: true}
+	policy := &config.CommitMessagePolicy{ConventionalCommits: true}
 	if err := applyCommitMessagePolicy(dir, policy, msgFile); err == nil {
 		t.Error("expected error for empty commit message")
 	}
@@ -61,7 +62,7 @@ func TestApplyCommitMessagePolicy_AppendTicketFooter(t *testing.T) {
 	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 	writeFile(t, msgFile, "feat: do something\n")
 
-	policy := &CommitMessagePolicy{AppendTicketFooter: true}
+	policy := &config.CommitMessagePolicy{AppendTicketFooter: true}
 	if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -80,7 +81,7 @@ func TestApplyCommitMessagePolicy_NoDoubleAppend(t *testing.T) {
 	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 	writeFile(t, msgFile, "feat: something\n\nCloses: PRJ-42\n")
 
-	policy := &CommitMessagePolicy{AppendTicketFooter: true}
+	policy := &config.CommitMessagePolicy{AppendTicketFooter: true}
 	if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -99,7 +100,7 @@ func TestApplyCommitMessagePolicy_RequireTicket_NoTicket(t *testing.T) {
 	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 	writeFile(t, msgFile, "feat: no ticket branch\n")
 
-	policy := &CommitMessagePolicy{RequireTicket: true}
+	policy := &config.CommitMessagePolicy{RequireTicket: true}
 	if err := applyCommitMessagePolicy(dir, policy, msgFile); err == nil {
 		t.Error("expected error when require_ticket=true and branch has no ticket")
 	}
@@ -112,7 +113,7 @@ func TestApplyCommitMessagePolicy_AllConventionalTypes(t *testing.T) {
 			dir := t.TempDir()
 			msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 			writeFile(t, msgFile, typ+": valid message\n")
-			policy := &CommitMessagePolicy{ConventionalCommits: true}
+			policy := &config.CommitMessagePolicy{ConventionalCommits: true}
 			if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
 				t.Errorf("type %q should be valid, got: %v", typ, err)
 			}
@@ -131,7 +132,7 @@ func TestApplyCommitMessagePolicy_ScopeAndBreaking(t *testing.T) {
 			dir := t.TempDir()
 			msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 			writeFile(t, msgFile, msg+"\n")
-			policy := &CommitMessagePolicy{ConventionalCommits: true}
+			policy := &config.CommitMessagePolicy{ConventionalCommits: true}
 			if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
 				t.Errorf("message %q should be valid, got: %v", msg, err)
 			}
@@ -152,7 +153,7 @@ func TestApplyCommitMessagePolicy_SkippedBranch(t *testing.T) {
 			// Non-conventional message — would normally fail conventional_commits check
 			writeFile(t, msgFile, "WIP: direct commit to protected branch\n")
 
-			policy := &CommitMessagePolicy{
+			policy := &config.CommitMessagePolicy{
 				ConventionalCommits: true,
 				AppendTicketFooter:  true,
 				SkippedBranches:     skipped,
@@ -177,7 +178,7 @@ func TestApplyCommitMessagePolicy_BranchNameValidation_Pass(t *testing.T) {
 	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 	writeFile(t, msgFile, "feat: valid message\n")
 
-	policy := &CommitMessagePolicy{
+	policy := &config.CommitMessagePolicy{
 		ConventionalCommits: true,
 		ValidateBranchName:  true,
 		BranchPattern:       `^(feature|fix|chore|story|task|bug|sub-task)/((?:PRJ|ERM)-[0-9]+-[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*|[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*)$`,
@@ -194,7 +195,7 @@ func TestApplyCommitMessagePolicy_BranchNameValidation_Fail(t *testing.T) {
 	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 	writeFile(t, msgFile, "feat: valid message\n")
 
-	policy := &CommitMessagePolicy{
+	policy := &config.CommitMessagePolicy{
 		ConventionalCommits: true,
 		ValidateBranchName:  true,
 		BranchPattern:       `^(feature|fix|chore|story|task|bug|sub-task)/((?:PRJ|ERM)-[0-9]+-[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*|[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*)$`,
@@ -211,7 +212,7 @@ func TestApplyCommitMessagePolicy_FooterLabel(t *testing.T) {
 	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 	writeFile(t, msgFile, "feat: custom label test\n")
 
-	policy := &CommitMessagePolicy{
+	policy := &config.CommitMessagePolicy{
 		AppendTicketFooter: true,
 		FooterLabel:        "Fixes",
 	}
@@ -295,7 +296,7 @@ func TestApplyPrepareCommitMsgPolicy_PrependTicket(t *testing.T) {
 	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
 	writeFile(t, msgFile, "add widget\n")
 
-	policy := &CommitMessagePolicy{PrependTicket: true}
+	policy := &config.CommitMessagePolicy{PrependTicket: true}
 	if err := applyPrepareCommitMsgPolicy(dir, policy, msgFile, "message"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -314,7 +315,7 @@ func TestApplyPrepareCommitMsgPolicy_SkipOnMerge(t *testing.T) {
 	original := "Merge branch 'main'\n"
 	writeFile(t, msgFile, original)
 
-	policy := &CommitMessagePolicy{PrependTicket: true, SkipOnMerge: true}
+	policy := &config.CommitMessagePolicy{PrependTicket: true, SkipOnMerge: true}
 	if err := applyPrepareCommitMsgPolicy(dir, policy, msgFile, "merge"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -333,7 +334,7 @@ func TestApplyPrepareCommitMsgPolicy_SkipIfPresent(t *testing.T) {
 	original := "PRJ-42: already present\n"
 	writeFile(t, msgFile, original)
 
-	policy := &CommitMessagePolicy{PrependTicket: true, SkipIfPresent: true}
+	policy := &config.CommitMessagePolicy{PrependTicket: true, SkipIfPresent: true}
 	if err := applyPrepareCommitMsgPolicy(dir, policy, msgFile, ""); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -362,7 +363,7 @@ func TestApplyPrepareCommitMsgPolicy_NoTicketInBranch(t *testing.T) {
 	original := "some message\n"
 	writeFile(t, msgFile, original)
 
-	policy := &CommitMessagePolicy{PrependTicket: true}
+	policy := &config.CommitMessagePolicy{PrependTicket: true}
 	if err := applyPrepareCommitMsgPolicy(dir, policy, msgFile, ""); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

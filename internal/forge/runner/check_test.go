@@ -1,14 +1,17 @@
-package forge
+package runner
 
 import (
 	"bytes"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
+	"github.com/TerrorSquad/forge/internal/forge/ui"
 )
 
 func TestToolConfigForCheck_NormalMode(t *testing.T) {
-	tool := ToolConfig{
+	tool := config.ToolConfig{
 		Command:   "gofmt",
 		Args:      []string{"-w"},
 		CheckArgs: []string{"-l"},
@@ -20,7 +23,7 @@ func TestToolConfigForCheck_NormalMode(t *testing.T) {
 }
 
 func TestToolConfigForCheck_CheckModeWithCheckArgs(t *testing.T) {
-	tool := ToolConfig{
+	tool := config.ToolConfig{
 		Command:   "gofmt",
 		Args:      []string{"-w"},
 		CheckArgs: []string{"-l"},
@@ -32,7 +35,7 @@ func TestToolConfigForCheck_CheckModeWithCheckArgs(t *testing.T) {
 }
 
 func TestToolConfigForCheck_CheckModeNoCheckArgs(t *testing.T) {
-	tool := ToolConfig{
+	tool := config.ToolConfig{
 		Command: "govet",
 		Args:    []string{"./..."},
 	}
@@ -44,15 +47,15 @@ func TestToolConfigForCheck_CheckModeNoCheckArgs(t *testing.T) {
 
 func TestPrintCheckSummary_AllPass(t *testing.T) {
 	var buf bytes.Buffer
-	origUI := UI
-	UI = &buf
-	t.Cleanup(func() { UI = origUI })
+	origUI := ui.UI
+	ui.UI = &buf
+	t.Cleanup(func() { ui.UI = origUI })
 
-	results := []ToolResult{
+	results := []ui.ToolResult{
 		{Name: "gofmt", Status: "pass", Duration: 10 * time.Millisecond},
 		{Name: "govet", Status: "pass", Duration: 20 * time.Millisecond},
 	}
-	PrintCheckSummary(results, 30*time.Millisecond)
+	ui.PrintCheckSummary(results, 30*time.Millisecond)
 	out := buf.String()
 	if !strings.Contains(out, "Check complete") {
 		t.Errorf("expected 'Check complete' in output, got: %s", out)
@@ -64,15 +67,15 @@ func TestPrintCheckSummary_AllPass(t *testing.T) {
 
 func TestPrintCheckSummary_WouldFail(t *testing.T) {
 	var buf bytes.Buffer
-	origUI := UI
-	UI = &buf
-	t.Cleanup(func() { UI = origUI })
+	origUI := ui.UI
+	ui.UI = &buf
+	t.Cleanup(func() { ui.UI = origUI })
 
-	results := []ToolResult{
+	results := []ui.ToolResult{
 		{Name: "gofmt", Status: "pass", Duration: 10 * time.Millisecond},
 		{Name: "govet", Status: "would-fail", Duration: 20 * time.Millisecond},
 	}
-	PrintCheckSummary(results, 30*time.Millisecond)
+	ui.PrintCheckSummary(results, 30*time.Millisecond)
 	out := buf.String()
 	if !strings.Contains(out, "1 would fail") {
 		t.Errorf("expected '1 would fail' in output, got: %s", out)

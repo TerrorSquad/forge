@@ -1,8 +1,10 @@
-package forge
+package runner
 
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
 )
 
 func TestSaveAndLoadCache_RoundTrip(t *testing.T) {
@@ -55,7 +57,7 @@ func TestToolCacheKey_Deterministic(t *testing.T) {
 	writeFile(t, f1, "package main\n")
 	writeFile(t, f2, "package main\n")
 
-	tool := ToolConfig{Command: "gofmt", Args: []string{"-w"}}
+	tool := config.ToolConfig{Command: "gofmt", Args: []string{"-w"}}
 	k1, err1 := toolCacheKey(tool, []string{f1, f2})
 	k2, err2 := toolCacheKey(tool, []string{f2, f1}) // reversed order
 	if err1 != nil || err2 != nil {
@@ -70,7 +72,7 @@ func TestToolCacheKey_ChangesOnFileChange(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "main.go")
 	writeFile(t, f, "package main\n")
-	tool := ToolConfig{Command: "gofmt"}
+	tool := config.ToolConfig{Command: "gofmt"}
 
 	k1, _ := toolCacheKey(tool, []string{f})
 	writeFile(t, f, "package main // changed\n")

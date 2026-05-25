@@ -1,13 +1,14 @@
-package forge
+package runner
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
+	"github.com/TerrorSquad/forge/internal/forge/git"
 )
 
-// matchingMembers returns workspace member directories whose path prefix matches
-// at least one of the provided staged file paths.
 func matchingMembers(repoRoot string, members []string, stagedFiles []string) ([]string, error) {
 	var matched []string
 	seen := map[string]bool{}
@@ -42,20 +43,17 @@ func matchingMembers(repoRoot string, members []string, stagedFiles []string) ([
 	return matched, nil
 }
 
-// runWorkspaceHook runs the given hook for each matching workspace member.
-// Each member must have a forge.toml (or the global config will be used).
 func runWorkspaceHook(repoRoot, hookName, editFile string, members []string) error {
 	for _, member := range members {
 		memberRoot := filepath.Join(repoRoot, member)
 		fmt.Printf("[workspace] %s\n", member)
 
-		// Look for a member-local config; fall back to root config
 		localConfig := filepath.Join(memberRoot, "forge.toml")
 		if _, err := os.Stat(localConfig); err != nil {
 			localConfig = filepath.Join(repoRoot, "forge.toml")
 		}
 
-		cfg, _, err := loadConfigFromPath(localConfig)
+		cfg, _, err := config.LoadConfigFromPath(localConfig)
 		if err != nil {
 			return fmt.Errorf("[%s] config error: %w", member, err)
 		}
@@ -83,7 +81,6 @@ func isDir(path string) bool {
 }
 
 func pathHasPrefix(filePath, prefix string) bool {
-	// Ensure prefix ends with separator so "apps/foo" doesn't match "apps/foobar"
 	if len(prefix) == 0 {
 		return true
 	}
@@ -94,9 +91,8 @@ func pathHasPrefix(filePath, prefix string) bool {
 	return len(filePath) >= len(p) && filePath[:len(p)] == p
 }
 
-// stagedFilesForMember returns staged files that belong to the given member sub-directory.
 func stagedFilesForMember(repoRoot, member string) ([]string, error) {
-	all, err := stagedFiles(repoRoot)
+	all, err := git.StagedFiles(repoRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +100,6 @@ func stagedFilesForMember(repoRoot, member string) ([]string, error) {
 	var filtered []string
 	for _, f := range all {
 		if len(f) > len(prefix) && f[:len(prefix)] == prefix {
-			// Strip the member prefix — tools operate within the member root
 			filtered = append(filtered, f[len(prefix):])
 		}
 	}

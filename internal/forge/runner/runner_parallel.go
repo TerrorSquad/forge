@@ -1,4 +1,4 @@
-package forge
+package runner
 
 import (
 	"bytes"
@@ -7,30 +7,32 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TerrorSquad/forge/internal/forge/backend"
+	"github.com/TerrorSquad/forge/internal/forge/config"
+	"github.com/TerrorSquad/forge/internal/forge/git"
+	"github.com/TerrorSquad/forge/internal/forge/ui"
 )
 
-// isParallelMode returns true if parallel execution is enabled for this hook.
+// IsParallelMode returns true if parallel execution is enabled for this hook.
 // Hook-level setting overrides the global [execution] default.
-func isParallelMode(hookCfg HookConfig, exec ExecutionConfig) bool {
+func IsParallelMode(hookCfg config.HookConfig, exec config.ExecutionConfig) bool {
 	if hookCfg.Parallel != nil {
 		return *hookCfg.Parallel
 	}
 	return exec.Parallel
 }
 
-// parallelToolResult holds the outcome of a single tool run in parallel mode.
 type parallelToolResult struct {
 	name       string
-	result     ToolResult
+	result     ui.ToolResult
 	cacheKey   string
 	filesToRun []string
-	tool       ToolConfig
+	tool       config.ToolConfig
 	err        error
 }
 
-// buildDependencyLevels groups tool names into levels where all dependencies of
-// tools in level N are satisfied by tools in levels 0…N-1.
-func buildDependencyLevels(toolNames []string, tools map[string]ToolConfig) [][]string {
+func buildDependencyLevels(toolNames []string, tools map[string]config.ToolConfig) [][]string {
 	levels := make(map[string]int)
 	for _, name := range toolNames {
 		assignLevel(name, tools, levels, make(map[string]bool))
@@ -44,7 +46,6 @@ func buildDependencyLevels(toolNames []string, tools map[string]ToolConfig) [][]
 	}
 
 	result := make([][]string, maxLevel+1)
-	// preserve sorted order within each level
 	for _, name := range toolNames {
 		l := levels[name]
 		result[l] = append(result[l], name)
@@ -52,12 +53,12 @@ func buildDependencyLevels(toolNames []string, tools map[string]ToolConfig) [][]
 	return result
 }
 
-func assignLevel(name string, tools map[string]ToolConfig, levels map[string]int, visiting map[string]bool) int {
+func assignLevel(name string, tools map[string]config.ToolConfig, levels map[string]int, visiting map[string]bool) int {
 	if l, ok := levels[name]; ok {
 		return l
 	}
 	if visiting[name] {
-		return 0 // cycle: treat as level 0
+		return 0
 	}
 	visiting[name] = true
 
@@ -78,21 +79,20 @@ func assignLevel(name string, tools map[string]ToolConfig, levels map[string]int
 	return level
 }
 
-// runHookCfgParallel runs hook tools in parallel, respecting depends_on groupings.
-func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec ExecutionConfig, files []string, opts RunOptions) error {
+func runHookCfgParallel(root, hookName string, hookCfg config.HookConfig, exec config.ExecutionConfig, files []string, opts RunOptions) error {
 	allFiles := opts.AllFiles
 	noCache := opts.NoCache
 	checkMode := opts.CheckMode
-	toolNames := applyToolFilter(sortedToolNames(hookCfg.Tools), hookCfg.Tools, opts)
+	toolNames := applyToolFilter(config.SortedToolNames(hookCfg.Tools), hookCfg.Tools, opts)
 	if len(toolNames) == 0 {
-		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))
+		fmt.Fprintf(ui.UI, "%s\n", ui.Dim("no tools configured for "+hookName))
 		return nil
 	}
 
-	PrintHookHeaderCI(hookName)
+	ui.PrintHookHeaderCI(hookName)
 
 	allowedGroups := parseAllowedGroups()
-	var allResults []ToolResult
+	var allResults []ui.ToolResult
 	hookStart := time.Now()
 	failed := false
 
@@ -103,13 +103,13 @@ func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec Executio
 
 	for _, levelNames := range levels {
 		if failed {
-			break // stop_on_failure semantics: don't start new waves after a failure
+			break
 		}
 
 		waveResults := runToolWave(root, levelNames, hookCfg.Tools, files, exec, noCache, checkMode, allowedGroups, tc)
 
 		for _, pr := range waveResults {
-			PrintToolResult(pr.result)
+			ui.PrintToolResult(pr.result)
 			allResults = append(allResults, pr.result)
 
 			if pr.err != nil {
@@ -117,12 +117,11 @@ func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec Executio
 				if !isContinue {
 					failed = true
 				}
-				// Check if this specific tool requests stop — skip remaining waves
 				if !isContinue && strings.EqualFold(strings.TrimSpace(pr.tool.OnFailure), "stop") {
 					if checkMode {
-						PrintCheckSummary(allResults, time.Since(hookStart))
+						ui.PrintCheckSummary(allResults, time.Since(hookStart))
 					} else {
-						PrintSummary(allResults, time.Since(hookStart))
+						ui.PrintSummary(allResults, time.Since(hookStart))
 					}
 					return fmt.Errorf("tool %s failed and requested stop", pr.name)
 				}
@@ -132,30 +131,18 @@ func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec Executio
 			}
 		}
 
-		// Stage declared output artifacts and apply show_output after each wave (non-check mode only).
 		if !checkMode {
 			for _, pr := range waveResults {
-				// Stage output files regardless of exit code (generated artifacts like diagrams).
 				if len(pr.tool.StageOutputs) > 0 {
-					_ = addFiles(root, pr.tool.StageOutputs) // best-effort; never block the hook
+					_ = git.AddFiles(root, pr.tool.StageOutputs)
 				}
 			}
 		}
 
-		// Stage declared output artifacts after each wave (regardless of exit code).
-		if !checkMode {
-			for _, pr := range waveResults {
-				if len(pr.tool.StageOutputs) > 0 {
-					_ = addFiles(root, pr.tool.StageOutputs) // best-effort; never block the hook
-				}
-			}
-		}
-
-		// Restage after each wave completes (only in normal mode, not check mode)
 		if !checkMode && !allFiles {
 			for _, pr := range waveResults {
 				if pr.err == nil && pr.tool.Restage && pr.tool.PassFilesEnabled() && len(pr.filesToRun) > 0 {
-					if err := addFiles(root, pr.filesToRun); err != nil {
+					if err := git.AddFiles(root, pr.filesToRun); err != nil {
 						return fmt.Errorf("tool %s restage failed: %w", pr.name, err)
 					}
 				}
@@ -163,7 +150,7 @@ func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec Executio
 		}
 	}
 
-	PrintSummaryCI(allResults, time.Since(hookStart), checkMode)
+	ui.PrintSummaryCI(allResults, time.Since(hookStart), checkMode)
 
 	if cacheUpdated {
 		saveCache(root, tc)
@@ -175,10 +162,7 @@ func runHookCfgParallel(root, hookName string, hookCfg HookConfig, exec Executio
 	return nil
 }
 
-// runToolWave executes a slice of tools concurrently and returns results in the
-// same order as the input names. Output from each tool is buffered and only
-// flushed when the tool finishes, preventing interleaving.
-func runToolWave(root string, names []string, tools map[string]ToolConfig, files []string, exec ExecutionConfig, noCache, checkMode bool, allowedGroups map[string]struct{}, tc toolCache) []parallelToolResult {
+func runToolWave(root string, names []string, tools map[string]config.ToolConfig, files []string, exec config.ExecutionConfig, noCache, checkMode bool, allowedGroups map[string]struct{}, tc toolCache) []parallelToolResult {
 	results := make([]parallelToolResult, len(names))
 	var wg sync.WaitGroup
 
@@ -190,24 +174,24 @@ func runToolWave(root string, names []string, tools map[string]ToolConfig, files
 			pr := parallelToolResult{name: toolName, tool: tool}
 
 			if shouldSkipTool(toolName) {
-				pr.result = ToolResult{Name: toolName, Status: "skip"}
+				pr.result = ui.ToolResult{Name: toolName, Status: "skip"}
 				results[idx] = pr
 				return
 			}
 			if shouldSkipGroup(tool.Group) {
-				pr.result = ToolResult{Name: toolName, Status: "skip"}
+				pr.result = ui.ToolResult{Name: toolName, Status: "skip"}
 				results[idx] = pr
 				return
 			}
 			if len(allowedGroups) > 0 && tool.Group != "" {
 				if _, ok := allowedGroups[strings.ToLower(tool.Group)]; !ok {
-					pr.result = ToolResult{Name: toolName, Status: "skip"}
+					pr.result = ui.ToolResult{Name: toolName, Status: "skip"}
 					results[idx] = pr
 					return
 				}
 			}
 			if strings.TrimSpace(tool.Command) == "" {
-				pr.result = ToolResult{Name: toolName, Status: "fail", Output: "command is required"}
+				pr.result = ui.ToolResult{Name: toolName, Status: "fail", Output: "command is required"}
 				pr.err = fmt.Errorf("tool %s: command is required", toolName)
 				results[idx] = pr
 				return
@@ -216,12 +200,11 @@ func runToolWave(root string, names []string, tools map[string]ToolConfig, files
 			filesToRun := filterFiles(files, tool)
 			pr.filesToRun = filesToRun
 
-			backend := ResolveBackend(root, tool, exec.DefaultBackend)
+			b := backend.ResolveBackend(root, tool, exec.DefaultBackend)
 
-			// Skip tool if its binary is not available.
-			resolvedCmd := resolveCommandForBackend(root, tool, backend)
-			if !toolBinaryAvailable(root, resolvedCmd, backend) {
-				pr.result = ToolResult{Name: toolName, Status: "skip"}
+			resolvedCmd := backend.ResolveCommandForBackend(root, tool, b)
+			if !backend.ToolBinaryAvailable(root, resolvedCmd, b) {
+				pr.result = ui.ToolResult{Name: toolName, Status: "skip"}
 				results[idx] = pr
 				return
 			}
@@ -231,7 +214,7 @@ func runToolWave(root string, names []string, tools map[string]ToolConfig, files
 				if k, err := toolCacheKey(tool, filesToRun); err == nil {
 					pr.cacheKey = k
 					if isCacheHit(tc, k) {
-						pr.result = ToolResult{Name: toolName, Status: "cached"}
+						pr.result = ui.ToolResult{Name: toolName, Status: "cached"}
 						results[idx] = pr
 						return
 					}
@@ -240,17 +223,16 @@ func runToolWave(root string, names []string, tools map[string]ToolConfig, files
 
 			effectiveTool := toolConfigForCheck(tool, checkMode)
 
-			// Buffer output per tool to prevent interleaving.
 			var buf bytes.Buffer
 			start := time.Now()
 			var runErr error
 			if checkMode && tool.CheckFailIfOutput {
-				runErr = executeToolWithContext(root, effectiveTool, filesToRun, backend, exec, &buf)
+				runErr = executeToolWithContext(root, effectiveTool, filesToRun, b, exec, &buf)
 				if runErr == nil && strings.TrimSpace(buf.String()) != "" {
 					runErr = fmt.Errorf("check produced output (check_fail_if_output = true)")
 				}
 			} else {
-				runErr = executeToolWithContext(root, effectiveTool, filesToRun, backend, exec, &buf)
+				runErr = executeToolWithContext(root, effectiveTool, filesToRun, b, exec, &buf)
 			}
 			dur := time.Since(start)
 			pr.err = runErr
@@ -260,13 +242,13 @@ func runToolWave(root string, names []string, tools map[string]ToolConfig, files
 				if checkMode {
 					status = "would-fail"
 				}
-				pr.result = ToolResult{Name: toolName, Status: status, Duration: dur, Output: buf.String()}
+				pr.result = ui.ToolResult{Name: toolName, Status: status, Duration: dur, Output: buf.String()}
 			} else {
 				passOutput := ""
 				if tool.ShowOutput {
 					passOutput = buf.String()
 				}
-				pr.result = ToolResult{Name: toolName, Status: "pass", Duration: dur, Output: passOutput}
+				pr.result = ui.ToolResult{Name: toolName, Status: "pass", Duration: dur, Output: passOutput}
 			}
 			results[idx] = pr
 		}(i, name)

@@ -6,12 +6,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/TerrorSquad/forge/internal/forge/git"
 )
 
 var supportedHooks = []string{"pre-commit", "commit-msg", "pre-push", "prepare-commit-msg", "post-commit", "post-merge", "post-rewrite"}
 
 func InstallHooks() error {
-	repoRoot, err := detectRepoRoot()
+	repoRoot, err := git.DetectRepoRoot()
 	if err != nil {
 		return err
 	}
@@ -34,7 +36,7 @@ func InstallHooks() error {
 		}
 	}
 
-	if _, err := runGit(repoRoot, "config", "--local", "core.hooksPath", ".forge/hooks"); err != nil {
+	if _, err := git.RunGit(repoRoot, "config", "--local", "core.hooksPath", ".forge/hooks"); err != nil {
 		return err
 	}
 
@@ -69,17 +71,17 @@ func addToExclude(path, entry string) {
 }
 
 func UninstallHooks() error {
-	repoRoot, err := detectRepoRoot()
+	repoRoot, err := git.DetectRepoRoot()
 	if err != nil {
 		return err
 	}
 
-	hooksPath, err := localHooksPath(repoRoot)
+	hooksPath, err := git.LocalHooksPath(repoRoot)
 	if err != nil {
 		return err
 	}
 	if strings.TrimSpace(hooksPath) == ".forge/hooks" {
-		if _, err := runGit(repoRoot, "config", "--local", "--unset", "core.hooksPath"); err != nil {
+		if _, err := git.RunGit(repoRoot, "config", "--local", "--unset", "core.hooksPath"); err != nil {
 			return err
 		}
 		fmt.Println("Unset git core.hooksPath")

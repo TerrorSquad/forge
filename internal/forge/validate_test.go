@@ -2,15 +2,17 @@ package forge
 
 import (
 	"strings"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
 	"testing"
 )
 
 // TestValidateConfig_ValidConfig ensures a well-formed config produces no issues.
 func TestValidateConfig_ValidConfig(t *testing.T) {
-	cfg := &Config{
-		Hooks: map[string]HookConfig{
+	cfg := &config.Config{
+		Hooks: map[string]config.HookConfig{
 			"pre-commit": {
-				Tools: map[string]ToolConfig{
+				Tools: map[string]config.ToolConfig{
 					"eslint": {Command: "eslint", Type: "node", Group: "lint"},
 					"prettier": {Command: "prettier", Type: "node", Group: "format",
 						DependsOn: []string{"eslint"}},
@@ -25,10 +27,10 @@ func TestValidateConfig_ValidConfig(t *testing.T) {
 
 // TestValidateConfig_MissingCommand flags an error when command is empty.
 func TestValidateConfig_MissingCommand(t *testing.T) {
-	cfg := &Config{
-		Hooks: map[string]HookConfig{
+	cfg := &config.Config{
+		Hooks: map[string]config.HookConfig{
 			"pre-commit": {
-				Tools: map[string]ToolConfig{
+				Tools: map[string]config.ToolConfig{
 					"oops": {Command: ""},
 				},
 			},
@@ -42,10 +44,10 @@ func TestValidateConfig_MissingCommand(t *testing.T) {
 
 // TestValidateConfig_UnknownOnFailure flags a warning for invalid on_failure.
 func TestValidateConfig_UnknownOnFailure(t *testing.T) {
-	cfg := &Config{
-		Hooks: map[string]HookConfig{
+	cfg := &config.Config{
+		Hooks: map[string]config.HookConfig{
 			"pre-commit": {
-				Tools: map[string]ToolConfig{
+				Tools: map[string]config.ToolConfig{
 					"tool": {Command: "cmd", OnFailure: "ignore"},
 				},
 			},
@@ -59,10 +61,10 @@ func TestValidateConfig_UnknownOnFailure(t *testing.T) {
 
 // TestValidateConfig_UnknownDependsOn flags an error for a missing depends_on ref.
 func TestValidateConfig_UnknownDependsOn(t *testing.T) {
-	cfg := &Config{
-		Hooks: map[string]HookConfig{
+	cfg := &config.Config{
+		Hooks: map[string]config.HookConfig{
 			"pre-commit": {
-				Tools: map[string]ToolConfig{
+				Tools: map[string]config.ToolConfig{
 					"tool": {Command: "cmd", DependsOn: []string{"ghost"}},
 				},
 			},
@@ -76,10 +78,10 @@ func TestValidateConfig_UnknownDependsOn(t *testing.T) {
 
 // TestValidateConfig_DependsCycle flags a cycle in depends_on.
 func TestValidateConfig_DependsCycle(t *testing.T) {
-	cfg := &Config{
-		Hooks: map[string]HookConfig{
+	cfg := &config.Config{
+		Hooks: map[string]config.HookConfig{
 			"pre-commit": {
-				Tools: map[string]ToolConfig{
+				Tools: map[string]config.ToolConfig{
 					"a": {Command: "a", DependsOn: []string{"b"}},
 					"b": {Command: "b", DependsOn: []string{"a"}},
 				},
@@ -100,10 +102,10 @@ func TestValidateConfig_DependsCycle(t *testing.T) {
 
 // TestValidateConfig_BadBranchPattern flags an error for an invalid regex.
 func TestValidateConfig_BadBranchPattern(t *testing.T) {
-	cfg := &Config{
-		Hooks: map[string]HookConfig{
+	cfg := &config.Config{
+		Hooks: map[string]config.HookConfig{
 			"commit-msg": {
-				Policy: &CommitMessagePolicy{
+				Policy: &config.CommitMessagePolicy{
 					ValidateBranchName: true,
 					BranchPattern:      "[invalid(regex",
 				},
@@ -118,7 +120,7 @@ func TestValidateConfig_BadBranchPattern(t *testing.T) {
 
 // TestDetectDependsCycles_NoCycle returns empty for a DAG.
 func TestDetectDependsCycles_NoCycle(t *testing.T) {
-	tools := map[string]ToolConfig{
+	tools := map[string]config.ToolConfig{
 		"a": {Command: "a", DependsOn: []string{"b"}},
 		"b": {Command: "b", DependsOn: []string{"c"}},
 		"c": {Command: "c"},
@@ -130,7 +132,7 @@ func TestDetectDependsCycles_NoCycle(t *testing.T) {
 
 // TestDetectDependsCycles_DirectCycle detects a direct A→B→A cycle.
 func TestDetectDependsCycles_DirectCycle(t *testing.T) {
-	tools := map[string]ToolConfig{
+	tools := map[string]config.ToolConfig{
 		"a": {Command: "a", DependsOn: []string{"b"}},
 		"b": {Command: "b", DependsOn: []string{"a"}},
 	}
@@ -141,7 +143,7 @@ func TestDetectDependsCycles_DirectCycle(t *testing.T) {
 
 // TestToolConfig_EnvField ensures Env is correctly parsed as map[string]string.
 func TestToolConfig_EnvField(t *testing.T) {
-	tool := ToolConfig{
+	tool := config.ToolConfig{
 		Command: "phpstan",
 		Env:     map[string]string{"PHPSTAN_MEMORY_LIMIT": "512M", "CI": "1"},
 	}

@@ -6,6 +6,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
+	"github.com/TerrorSquad/forge/internal/forge/git"
 )
 
 // DoctorOptions controls doctor behaviour.
@@ -23,7 +26,7 @@ func DoctorWithOptions(opts DoctorOptions) error {
 	}
 	fmt.Printf("forge binary: %s\n", exe)
 
-	repoRoot, err := detectRepoRoot()
+	repoRoot, err := git.DetectRepoRoot()
 	if err != nil {
 		fmt.Printf("git repo: not detected (%v)\n", err)
 		return nil
@@ -31,14 +34,14 @@ func DoctorWithOptions(opts DoctorOptions) error {
 	fmt.Printf("git repo root: %s\n", repoRoot)
 
 	// Global config
-	globalPath := globalConfigPath()
+	globalPath := config.GlobalConfigPath()
 	if _, err := os.Stat(globalPath); err == nil {
 		fmt.Printf("global config: %s\n", globalPath)
 	} else {
 		fmt.Printf("global config: not found (%s)\n", globalPath)
 	}
 
-	cfg, cfgPath, cfgErr := LoadConfig(repoRoot)
+	cfg, cfgPath, cfgErr := config.LoadConfig(repoRoot)
 	if cfgErr != nil {
 		fmt.Printf("config: missing (%v)\n", cfgErr)
 		if opts.Fix && !opts.DryRun {
@@ -52,7 +55,7 @@ func DoctorWithOptions(opts DoctorOptions) error {
 	}
 
 	// Check core.hooksPath
-	hooksPath, _ := localHooksPath(repoRoot)
+	hooksPath, _ := git.LocalHooksPath(repoRoot)
 	wantHooksPath := ".forge/hooks"
 	if hooksPath == "" {
 		fmt.Println("core.hooksPath: not set")
@@ -117,7 +120,7 @@ func DoctorWithOptions(opts DoctorOptions) error {
 	return nil
 }
 
-func sortedHookNames(hooks map[string]HookConfig) []string {
+func sortedHookNames(hooks map[string]config.HookConfig) []string {
 	out := make([]string, 0, len(hooks))
 	for k := range hooks {
 		out = append(out, k)
@@ -136,7 +139,7 @@ func sortStrings(items []string) {
 	}
 }
 
-func checkToolAvailability(cfg *Config) []string {
+func checkToolAvailability(cfg *config.Config) []string {
 	set := map[string]struct{}{}
 	for _, hook := range cfg.Hooks {
 		for _, tool := range hook.Tools {

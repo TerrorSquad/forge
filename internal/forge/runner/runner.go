@@ -1,4 +1,4 @@
-package forge
+package runner
 
 import (
 	"bufio"
@@ -13,6 +13,11 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/TerrorSquad/forge/internal/forge/backend"
+	"github.com/TerrorSquad/forge/internal/forge/config"
+	"github.com/TerrorSquad/forge/internal/forge/git"
+	"github.com/TerrorSquad/forge/internal/forge/ui"
 )
 
 var ticketRegex = regexp.MustCompile(`([A-Z]+-[0-9]+)`)
@@ -20,13 +25,13 @@ var conventionalRegex = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|
 
 // RunOptions controls optional behaviour for a hook run.
 type RunOptions struct {
-	AllFiles   bool     // run against all tracked files instead of only staged ones
-	Source     string   // git source arg for prepare-commit-msg (merge, squash, ...)
-	NoCache    bool     // bypass run cache for this invocation
-	CheckMode  bool     // dry-run: use check_args, suppress restage, treat output as failure
-	OnlyTools  []string // if non-empty, run only these tool names
-	OnlyGroups []string // if non-empty, run only tools whose group matches
-	SkipTools  []string // skip these tools by name (additive to SKIP_* env)
+	AllFiles   bool
+	Source     string // git source arg for prepare-commit-msg (merge, squash, ...)
+	NoCache    bool
+	CheckMode  bool
+	OnlyTools  []string
+	OnlyGroups []string
+	SkipTools  []string
 }
 
 func RunHook(hookName string, editFile string) error {
@@ -34,12 +39,11 @@ func RunHook(hookName string, editFile string) error {
 }
 
 func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error {
-	repoRoot, err := detectRepoRoot()
+	repoRoot, err := git.DetectRepoRoot()
 	if err != nil {
 		return err
 	}
 
-	// Load project-level env overrides before any SKIP_* checks.
 	loadEnvFiles(repoRoot)
 
 	if opts.AllFiles && hookName != "pre-commit" {
@@ -47,31 +51,25 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 	}
 
 	if isHookSkippedEnv(hookName) {
-		fmt.Fprintf(UI, "%s\n", yellow("~ "+hookName+" skipped (env skip set)"))
-		return ErrHookSkipped
+		fmt.Fprintf(ui.UI, "%s\n", ui.Yellow("~ "+hookName+" skipped (env skip set)"))
+		return config.ErrHookSkipped
 	}
 
-	cfg, configPath, err := LoadConfig(repoRoot)
+	cfg, configPath, err := config.LoadConfig(repoRoot)
 	if err != nil {
 		return err
 	}
 
-	// Emit validation warnings (non-blocking) so developers see config issues early.
-	if issues := ValidateConfig(cfg); len(issues) > 0 {
-		PrintValidationIssues(issues)
-	}
-
 	hookCfg, ok := cfg.Hooks[hookName]
 	if !ok || !hookCfg.IsEnabled() {
-		// Silently exit — no config = nothing to do.
-		return ErrHookSkipped
+		return config.ErrHookSkipped
 	}
 
-	fmt.Fprintf(UI, "%s\n", dim("config: "+configPath))
+	fmt.Fprintf(ui.UI, "%s\n", ui.Dim("config: "+configPath))
 
 	// Workspace mode: run hook for each affected member
 	if len(cfg.Workspace.Members) > 0 && hookName != "commit-msg" {
-		staged, err := stagedFiles(repoRoot)
+		staged, err := git.StagedFiles(repoRoot)
 		if err != nil {
 			return err
 		}
@@ -116,34 +114,31 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 	files := []string{}
 	if hookName == "pre-commit" {
 		if opts.AllFiles {
-			files, err = allTrackedFiles(repoRoot)
+			files, err = git.AllTrackedFiles(repoRoot)
 			if err != nil {
 				return err
 			}
 		} else {
-			files, err = stagedFiles(repoRoot)
+			files, err = git.StagedFiles(repoRoot)
 			if err != nil {
 				return err
 			}
 			if len(files) == 0 {
-				fmt.Fprintf(UI, "%s\n", dim("no staged files — nothing to run"))
+				fmt.Fprintf(ui.UI, "%s\n", ui.Dim("no staged files — nothing to run"))
 				return nil
 			}
 		}
 
-		// Safe stash: protect unstaged changes from fixers that modify files in place.
-		// Activated automatically when any configured tool has restage=true, unless
-		// [hooks.pre-commit] safe_stash = false explicitly opts out.
 		if safeStashEnabled(hookCfg) && !opts.AllFiles && !opts.CheckMode {
-			_, stashed, stashErr := stashUnstagedChanges(repoRoot)
+			_, stashed, stashErr := git.StashUnstagedChanges(repoRoot)
 			if stashErr != nil {
-				fmt.Fprintf(UI, "%s\n", yellow("⚠ stash failed: "+stashErr.Error()+" — proceeding without stash"))
+				fmt.Fprintf(ui.UI, "%s\n", ui.Yellow("⚠ stash failed: "+stashErr.Error()+" — proceeding without stash"))
 			} else if stashed {
-				fmt.Fprintf(UI, "  %s\n", dim("⬇  stashing unstaged changes..."))
+				fmt.Fprintf(ui.UI, "  %s\n", ui.Dim("⬇  stashing unstaged changes..."))
 				defer func() {
-					fmt.Fprintf(UI, "  %s\n", dim("⬆  restoring unstaged changes..."))
-					if popErr := popStash(repoRoot); popErr != nil {
-						fmt.Fprintf(UI, "%s\n", yellow("⚠ "+popErr.Error()))
+					fmt.Fprintf(ui.UI, "  %s\n", ui.Dim("⬆  restoring unstaged changes..."))
+					if popErr := git.PopStash(repoRoot); popErr != nil {
+						fmt.Fprintf(ui.UI, "%s\n", ui.Yellow("⚠ "+popErr.Error()))
 					}
 				}()
 			}
@@ -153,29 +148,26 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files, opts)
 }
 
-// runHookCfg executes all tools in hookCfg for the given root / staged files.
-// This is the inner loop used by both the root hook and workspace members.
-func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec ExecutionConfig, files []string, opts RunOptions) error {
+func runHookCfg(root, hookName, editFile string, hookCfg config.HookConfig, exec config.ExecutionConfig, files []string, opts RunOptions) error {
 	allFiles := opts.AllFiles
 	noCache := opts.NoCache
 	checkMode := opts.CheckMode
-	if isParallelMode(hookCfg, exec) {
+	if IsParallelMode(hookCfg, exec) {
 		return runHookCfgParallel(root, hookName, hookCfg, exec, files, opts)
 	}
-	toolNames := applyToolFilter(sortedToolNames(hookCfg.Tools), hookCfg.Tools, opts)
+	toolNames := applyToolFilter(config.SortedToolNames(hookCfg.Tools), hookCfg.Tools, opts)
 	if len(toolNames) == 0 {
-		fmt.Fprintf(UI, "%s\n", dim("no tools configured for "+hookName))
+		fmt.Fprintf(ui.UI, "%s\n", ui.Dim("no tools configured for "+hookName))
 		return nil
 	}
 
-	PrintHookHeaderCI(hookName)
+	ui.PrintHookHeaderCI(hookName)
 
 	allowedGroups := parseAllowedGroups()
-	var results []ToolResult
+	var results []ui.ToolResult
 	hookStart := time.Now()
 	failed := false
 
-	// Load cache once for the hook run.
 	tc := loadCache(root)
 	cacheUpdated := false
 
@@ -183,21 +175,21 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		tool := hookCfg.Tools[name]
 
 		if shouldSkipTool(name) {
-			r := ToolResult{Name: name, Status: "skip"}
-			PrintToolResult(r)
+			r := ui.ToolResult{Name: name, Status: "skip"}
+			ui.PrintToolResult(r)
 			results = append(results, r)
 			continue
 		}
 		if shouldSkipGroup(tool.Group) {
-			r := ToolResult{Name: name, Status: "skip"}
-			PrintToolResult(r)
+			r := ui.ToolResult{Name: name, Status: "skip"}
+			ui.PrintToolResult(r)
 			results = append(results, r)
 			continue
 		}
 		if len(allowedGroups) > 0 && tool.Group != "" {
 			if _, ok := allowedGroups[strings.ToLower(tool.Group)]; !ok {
-				r := ToolResult{Name: name, Status: "skip"}
-				PrintToolResult(r)
+				r := ui.ToolResult{Name: name, Status: "skip"}
+				ui.PrintToolResult(r)
 				results = append(results, r)
 				continue
 			}
@@ -208,57 +200,54 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 
 		filesToRun := filterFiles(files, tool)
 		if hookName == "pre-commit" && tool.PassFilesEnabled() && len(filesToRun) == 0 {
-			r := ToolResult{Name: name, Status: "skip"}
-			PrintToolResult(r)
+			r := ui.ToolResult{Name: name, Status: "skip"}
+			ui.PrintToolResult(r)
 			results = append(results, r)
 			continue
 		}
 
-		backend := ResolveBackend(root, tool, exec.DefaultBackend)
-		// Skip tool if its binary is not available (mirrors legacy hook behaviour).
-		resolvedCmd := resolveCommandForBackend(root, tool, backend)
-		if !toolBinaryAvailable(root, resolvedCmd, backend) {
-			r := ToolResult{Name: name, Status: "skip", Output: "binary not found: " + resolvedCmd}
-			PrintToolResult(r)
+		b := backend.ResolveBackend(root, tool, exec.DefaultBackend)
+		resolvedCmd := backend.ResolveCommandForBackend(root, tool, b)
+		if !backend.ToolBinaryAvailable(root, resolvedCmd, b) {
+			r := ui.ToolResult{Name: name, Status: "skip", Output: "binary not found: " + resolvedCmd}
+			ui.PrintToolResult(r)
 			results = append(results, r)
 			continue
 		}
-		// Check run cache.
+
 		cacheEnabled := !noCache && (tool.Cache || exec.Cache)
 		var cacheKey string
 		if cacheEnabled {
 			if k, err := toolCacheKey(tool, filesToRun); err == nil {
 				cacheKey = k
 				if isCacheHit(tc, cacheKey) {
-					r := ToolResult{Name: name, Status: "cached"}
-					PrintToolResult(r)
+					r := ui.ToolResult{Name: name, Status: "cached"}
+					ui.PrintToolResult(r)
 					results = append(results, r)
 					continue
 				}
 			}
 		}
 
-		// In check mode, substitute check_args and capture all output.
 		effectiveTool := toolConfigForCheck(tool, checkMode)
 
-		printRunning(name)
+		ui.PrintRunning(name)
 		start := time.Now()
 		var toolOut string
 		var err error
 		if checkMode && tool.CheckFailIfOutput {
-			toolOut, err = executeToolCaptureAll(root, effectiveTool, filesToRun, backend, exec)
+			toolOut, err = executeToolCaptureAll(root, effectiveTool, filesToRun, b, exec)
 			if err == nil && strings.TrimSpace(toolOut) != "" {
 				err = fmt.Errorf("check produced output (check_fail_if_output = true)")
 			}
 		} else {
-			toolOut, err = executeToolCaptured(root, effectiveTool, filesToRun, backend, exec)
+			toolOut, err = executeToolCaptured(root, effectiveTool, filesToRun, b, exec)
 		}
 		dur := time.Since(start)
-		clearRunning()
+		ui.ClearRunning()
 
-		// Stage any declared output files regardless of exit code (e.g. generated diagrams).
 		if !checkMode && len(tool.StageOutputs) > 0 {
-			_ = addFiles(root, tool.StageOutputs) // best-effort; never block the hook
+			_ = git.AddFiles(root, tool.StageOutputs)
 		}
 
 		if err != nil {
@@ -266,8 +255,8 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 			if checkMode {
 				status = "would-fail"
 			}
-			r := ToolResult{Name: name, Status: status, Duration: dur, Output: toolOut}
-			PrintToolResult(r)
+			r := ui.ToolResult{Name: name, Status: status, Duration: dur, Output: toolOut}
+			ui.PrintToolResult(r)
 			results = append(results, r)
 			isContinue := strings.EqualFold(strings.TrimSpace(tool.OnFailure), "continue")
 			if !isContinue {
@@ -275,7 +264,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 			}
 			if !checkMode && !isContinue {
 				if strings.EqualFold(strings.TrimSpace(tool.OnFailure), "stop") {
-					PrintSummary(results, time.Since(hookStart))
+					ui.PrintSummary(results, time.Since(hookStart))
 					return fmt.Errorf("tool %s failed and requested stop", name)
 				}
 			}
@@ -286,11 +275,10 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 		if tool.ShowOutput {
 			passOutput = toolOut
 		}
-		r := ToolResult{Name: name, Status: "pass", Duration: dur, Output: passOutput}
-		PrintToolResult(r)
+		r := ui.ToolResult{Name: name, Status: "pass", Duration: dur, Output: passOutput}
+		ui.PrintToolResult(r)
 		results = append(results, r)
 
-		// Update cache on success (only in normal mode).
 		if !checkMode && cacheEnabled && cacheKey != "" {
 			updateCacheEntry(tc, cacheKey)
 			cacheUpdated = true
@@ -298,16 +286,16 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 
 		if tool.Restage && tool.PassFilesEnabled() && !checkMode {
 			if allFiles {
-				fmt.Fprintf(UI, "%s\n", yellow("  restage suppressed for "+name+" (--all-files mode)"))
+				fmt.Fprintf(ui.UI, "%s\n", ui.Yellow("  restage suppressed for "+name+" (--all-files mode)"))
 			} else {
-				if err := addFiles(root, filesToRun); err != nil {
+				if err := git.AddFiles(root, filesToRun); err != nil {
 					return fmt.Errorf("tool %s restage failed: %w", name, err)
 				}
 			}
 		}
 	}
 
-	PrintSummaryCI(results, time.Since(hookStart), checkMode)
+	ui.PrintSummaryCI(results, time.Since(hookStart), checkMode)
 
 	if cacheUpdated {
 		saveCache(root, tc)
@@ -320,29 +308,22 @@ func runHookCfg(root, hookName, editFile string, hookCfg HookConfig, exec Execut
 	return nil
 }
 
-// executeToolCaptured runs the tool and returns captured combined output on
-// failure. On success the output is discarded (streamed to /dev/null is not
-// quite right — we stream to a buffer and only surface it on error).
-func executeToolCaptured(repoRoot string, tool ToolConfig, files []string, backend Backend, execCfg ExecutionConfig) (string, error) {
+func executeToolCaptured(repoRoot string, tool config.ToolConfig, files []string, b backend.Backend, execCfg config.ExecutionConfig) (string, error) {
 	var buf bytes.Buffer
-	err := executeToolWithContext(repoRoot, tool, files, backend, execCfg, &buf)
+	err := executeToolWithContext(repoRoot, tool, files, b, execCfg, &buf)
 	if err != nil {
 		return buf.String(), err
 	}
 	return "", nil
 }
 
-// executeToolCaptureAll runs the tool and always returns stdout+stderr, even on success.
-// Used in check mode when check_fail_if_output = true.
-func executeToolCaptureAll(repoRoot string, tool ToolConfig, files []string, backend Backend, execCfg ExecutionConfig) (string, error) {
+func executeToolCaptureAll(repoRoot string, tool config.ToolConfig, files []string, b backend.Backend, execCfg config.ExecutionConfig) (string, error) {
 	var buf bytes.Buffer
-	err := executeToolWithContext(repoRoot, tool, files, backend, execCfg, &buf)
+	err := executeToolWithContext(repoRoot, tool, files, b, execCfg, &buf)
 	return buf.String(), err
 }
 
-// toolConfigForCheck returns a copy of tool with Args replaced by CheckArgs
-// when in check mode and CheckArgs is non-empty.
-func toolConfigForCheck(tool ToolConfig, checkMode bool) ToolConfig {
+func toolConfigForCheck(tool config.ToolConfig, checkMode bool) config.ToolConfig {
 	if !checkMode || len(tool.CheckArgs) == 0 {
 		return tool
 	}
@@ -351,7 +332,7 @@ func toolConfigForCheck(tool ToolConfig, checkMode bool) ToolConfig {
 	return t
 }
 
-func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, editFile string) error {
+func applyCommitMessagePolicy(repoRoot string, policy *config.CommitMessagePolicy, editFile string) error {
 	if policy == nil {
 		return nil
 	}
@@ -360,17 +341,14 @@ func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, edit
 		return fmt.Errorf("commit-msg policy requires message file (pass --edit or let git pass the file path)")
 	}
 
-	// Resolve current branch (best-effort — empty string if not in a git repo).
-	branch, _ := currentBranch(repoRoot)
+	branch, _ := git.CurrentBranch(repoRoot)
 
-	// Skipped branches bypass ALL validation (no conventional commits, no footer).
 	for _, skip := range policy.SkippedBranches {
 		if branch == skip {
 			return nil
 		}
 	}
 
-	// Branch name validation (optional). Requires a resolvable branch.
 	if policy.ValidateBranchName && policy.BranchPattern != "" {
 		if branch == "" {
 			return fmt.Errorf("cannot determine current branch for branch_pattern validation")
@@ -429,8 +407,7 @@ func applyCommitMessagePolicy(repoRoot string, policy *CommitMessagePolicy, edit
 	return nil
 }
 
-// applyPrepareCommitMsgPolicy optionally prepends the ticket from the branch name.
-func applyPrepareCommitMsgPolicy(repoRoot string, policy *CommitMessagePolicy, editFile, source string) error {
+func applyPrepareCommitMsgPolicy(repoRoot string, policy *config.CommitMessagePolicy, editFile, source string) error {
 	if policy == nil || !policy.PrependTicket {
 		return nil
 	}
@@ -443,7 +420,7 @@ func applyPrepareCommitMsgPolicy(repoRoot string, policy *CommitMessagePolicy, e
 		return nil
 	}
 
-	branch, err := currentBranch(repoRoot)
+	branch, err := git.CurrentBranch(repoRoot)
 	if err != nil {
 		return err
 	}
@@ -470,17 +447,16 @@ func applyPrepareCommitMsgPolicy(repoRoot string, policy *CommitMessagePolicy, e
 	return os.WriteFile(editFile, []byte(rewritten), 0644)
 }
 
-func executeTool(repoRoot string, tool ToolConfig, files []string, backend Backend, execCfg ExecutionConfig) error {
-	_, err := executeToolCaptured(repoRoot, tool, files, backend, execCfg)
+func executeTool(repoRoot string, tool config.ToolConfig, files []string, b backend.Backend, execCfg config.ExecutionConfig) error {
+	_, err := executeToolCaptured(repoRoot, tool, files, b, execCfg)
 	return err
 }
 
-// executeToolWithContext runs the tool with an optional timeout derived from execCfg.
-func executeToolWithContext(repoRoot string, tool ToolConfig, files []string, backend Backend, execCfg ExecutionConfig, w io.Writer) error {
+func executeToolWithContext(repoRoot string, tool config.ToolConfig, files []string, b backend.Backend, execCfg config.ExecutionConfig, w io.Writer) error {
 	ctx, cancel := buildToolContext(tool, execCfg)
 	defer cancel()
 
-	err := executeToolWithWriter(repoRoot, tool, files, backend, w, ctx)
+	err := executeToolWithWriter(repoRoot, tool, files, b, w, ctx)
 	if err != nil && ctx.Err() != nil {
 		d := resolveToolTimeout(tool, execCfg)
 		return fmt.Errorf("timed out after %s", d.Round(time.Millisecond))
@@ -488,8 +464,7 @@ func executeToolWithContext(repoRoot string, tool ToolConfig, files []string, ba
 	return err
 }
 
-// resolveToolTimeout returns the effective timeout for a tool; 0 means no limit.
-func resolveToolTimeout(tool ToolConfig, execCfg ExecutionConfig) time.Duration {
+func resolveToolTimeout(tool config.ToolConfig, execCfg config.ExecutionConfig) time.Duration {
 	s := tool.Timeout
 	if s == "" {
 		s = execCfg.ToolTimeout
@@ -504,8 +479,7 @@ func resolveToolTimeout(tool ToolConfig, execCfg ExecutionConfig) time.Duration 
 	return d
 }
 
-// buildToolContext returns a context (and cancel) for the tool's timeout.
-func buildToolContext(tool ToolConfig, execCfg ExecutionConfig) (context.Context, context.CancelFunc) {
+func buildToolContext(tool config.ToolConfig, execCfg config.ExecutionConfig) (context.Context, context.CancelFunc) {
 	d := resolveToolTimeout(tool, execCfg)
 	if d <= 0 {
 		return context.Background(), func() {}
@@ -513,15 +487,15 @@ func buildToolContext(tool ToolConfig, execCfg ExecutionConfig) (context.Context
 	return context.WithTimeout(context.Background(), d)
 }
 
-func executeToolWithWriter(repoRoot string, tool ToolConfig, files []string, backend Backend, w io.Writer, ctx context.Context) error {
-	cmd := resolveCommandForBackend(repoRoot, tool, backend)
+func executeToolWithWriter(repoRoot string, tool config.ToolConfig, files []string, b backend.Backend, w io.Writer, ctx context.Context) error {
+	cmd := backend.ResolveCommandForBackend(repoRoot, tool, b)
 	if tool.RunPerFile {
 		for _, file := range files {
 			args := append([]string{}, tool.Args...)
 			if tool.PassFilesEnabled() {
 				args = append(args, file)
 			}
-			if err := backend.ExecWithContext(ctx, repoRoot, append([]string{cmd}, args...), tool.Env, w); err != nil {
+			if err := b.ExecWithContext(ctx, repoRoot, append([]string{cmd}, args...), tool.Env, w); err != nil {
 				return err
 			}
 		}
@@ -532,10 +506,10 @@ func executeToolWithWriter(repoRoot string, tool ToolConfig, files []string, bac
 	if tool.PassFilesEnabled() {
 		args = append(args, files...)
 	}
-	return backend.ExecWithContext(ctx, repoRoot, append([]string{cmd}, args...), tool.Env, w)
+	return b.ExecWithContext(ctx, repoRoot, append([]string{cmd}, args...), tool.Env, w)
 }
 
-func filterFiles(files []string, tool ToolConfig) []string {
+func filterFiles(files []string, tool config.ToolConfig) []string {
 	if len(files) == 0 {
 		return files
 	}
@@ -616,10 +590,6 @@ func isHookSkippedEnv(hook string) bool {
 	return isTruthy(os.Getenv(key))
 }
 
-// loadEnvFiles reads KEY=VALUE pairs from .git-hooks.env and .env (in that
-// order of precedence) and sets them in the process environment. Variables
-// that are already set in the environment are not overwritten — explicit
-// shell exports always win.
 func loadEnvFiles(repoRoot string) {
 	for _, name := range []string{".git-hooks.env", ".env"} {
 		path := filepath.Join(repoRoot, name)
@@ -638,7 +608,6 @@ func loadEnvFiles(repoRoot string) {
 			}
 			k = strings.TrimSpace(k)
 			v = strings.TrimSpace(v)
-			// Strip surrounding quotes (single or double).
 			if len(v) >= 2 && ((v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'')) {
 				v = v[1 : len(v)-1]
 			}
@@ -649,14 +618,10 @@ func loadEnvFiles(repoRoot string) {
 	}
 }
 
-// safeStashEnabled returns true when the stash protection should be activated
-// for the given pre-commit hook config. Activated automatically when any tool
-// has restage=true, unless safe_stash is explicitly set to false.
-func safeStashEnabled(hookCfg HookConfig) bool {
+func safeStashEnabled(hookCfg config.HookConfig) bool {
 	if hookCfg.SafeStash != nil {
 		return *hookCfg.SafeStash
 	}
-	// Auto-detect: enable when any tool has restage=true.
 	for _, tool := range hookCfg.Tools {
 		if tool.Restage {
 			return true
@@ -678,9 +643,7 @@ func shouldSkipGroup(group string) bool {
 	return isTruthy(os.Getenv(key))
 }
 
-// applyToolFilter filters toolNames according to OnlyTools/OnlyGroups/SkipTools in opts.
-// When all filter slices are empty, the original list is returned unchanged.
-func applyToolFilter(toolNames []string, tools map[string]ToolConfig, opts RunOptions) []string {
+func applyToolFilter(toolNames []string, tools map[string]config.ToolConfig, opts RunOptions) []string {
 	if len(opts.OnlyTools) == 0 && len(opts.OnlyGroups) == 0 && len(opts.SkipTools) == 0 {
 		return toolNames
 	}
@@ -695,7 +658,6 @@ func applyToolFilter(toolNames []string, tools map[string]ToolConfig, opts RunOp
 		}
 		tool := tools[name]
 		if len(onlyToolSet) > 0 && !onlyToolSet[name] {
-			// Check depends_on: always include dependency tools even if not in the filter.
 			if !isDependencyOf(name, opts.OnlyTools, tools) {
 				continue
 			}
@@ -716,8 +678,7 @@ func setOf(items []string) map[string]bool {
 	return m
 }
 
-// isDependencyOf returns true if name is listed in the depends_on of any of the requested tools.
-func isDependencyOf(name string, requestedTools []string, tools map[string]ToolConfig) bool {
+func isDependencyOf(name string, requestedTools []string, tools map[string]config.ToolConfig) bool {
 	nameLower := strings.ToLower(name)
 	for _, req := range requestedTools {
 		t, ok := tools[req]
@@ -789,8 +750,6 @@ type PushRef struct {
 	RemoteSHA string
 }
 
-// parsePushContext reads git's pre-push stdin payload and the FORGE_PUSH_*
-// env vars (which the shim should set from $1/$2).
 func parsePushContext(r io.Reader) PushContext {
 	ctx := PushContext{
 		Remote: os.Getenv("FORGE_PUSH_REMOTE"),
@@ -812,7 +771,6 @@ func parsePushContext(r io.Reader) PushContext {
 			RemoteSHA: parts[3],
 		})
 	}
-	// Derive branch from first ref if not set
 	if ctx.Remote == "" && len(ctx.Refs) > 0 {
 		ref := ctx.Refs[0].LocalRef
 		if strings.HasPrefix(ref, "refs/heads/") {
@@ -822,9 +780,7 @@ func parsePushContext(r io.Reader) PushContext {
 	return ctx
 }
 
-// runHookCfgWithPushContext runs pre-push tools, injecting push context into env.
-func runHookCfgWithPushContext(root, hookName string, hookCfg HookConfig, execCfg ExecutionConfig, ctx PushContext) error {
-	// Expose push context as env vars for tools
+func runHookCfgWithPushContext(root, hookName string, hookCfg config.HookConfig, execCfg config.ExecutionConfig, ctx PushContext) error {
 	if ctx.Remote != "" {
 		os.Setenv("FORGE_PUSH_REMOTE", ctx.Remote)
 	}
@@ -837,6 +793,5 @@ func runHookCfgWithPushContext(root, hookName string, hookCfg HookConfig, execCf
 			os.Setenv("FORGE_PUSH_BRANCH", strings.TrimPrefix(ref, "refs/heads/"))
 		}
 	}
-	// pre-push tools operate on no staged files (pass_files defaults to false)
 	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil, RunOptions{})
 }

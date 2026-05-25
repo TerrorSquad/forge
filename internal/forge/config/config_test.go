@@ -1,4 +1,4 @@
-package forge
+package config
 
 import (
 	"os"
@@ -251,7 +251,7 @@ func TestListPresets_ContainsExpected(t *testing.T) {
 
 func TestGlobalConfigPath_EnvOverride(t *testing.T) {
 	t.Setenv("FORGE_GLOBAL_CONFIG", "/tmp/my-global-forge.toml")
-	got := globalConfigPath()
+	got := GlobalConfigPath()
 	if got != "/tmp/my-global-forge.toml" {
 		t.Errorf("expected env override, got %s", got)
 	}
@@ -260,7 +260,7 @@ func TestGlobalConfigPath_EnvOverride(t *testing.T) {
 func TestGlobalConfigPath_XDGDefault(t *testing.T) {
 	t.Setenv("FORGE_GLOBAL_CONFIG", "")
 	t.Setenv("XDG_CONFIG_HOME", "/custom/xdg")
-	got := globalConfigPath()
+	got := GlobalConfigPath()
 	if got != "/custom/xdg/forge/config.toml" {
 		t.Errorf("expected XDG path, got %s", got)
 	}

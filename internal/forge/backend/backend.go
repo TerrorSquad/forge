@@ -1,4 +1,4 @@
-package forge
+package backend
 
 import (
 	"bytes"
@@ -9,18 +9,20 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/TerrorSquad/forge/internal/forge/config"
 )
 
 // Backend represents an execution environment for tool commands.
 type Backend interface {
 	// Name returns the backend identifier.
 	Name() string
-	// Exec runs cmd with args, streaming stdout/stderr to the process stdout/stderr.
+	// Exec runs cmd, streaming stdout/stderr to the process stdout/stderr.
 	Exec(dir string, cmd []string) error
-	// ExecWithWriter runs cmd with args, writing combined stdout+stderr to w.
+	// ExecWithWriter runs cmd, writing combined stdout+stderr to w.
 	ExecWithWriter(dir string, cmd []string, w io.Writer) error
-	// ExecWithContext runs cmd with args (respecting ctx cancellation), writing to w when non-nil.
-	// env contains additional environment variables merged on top of the parent process env; nil means inherit unchanged.
+	// ExecWithContext runs cmd respecting ctx cancellation, writing to w when non-nil.
+	// env contains additional environment variables merged on top of the parent process env.
 	ExecWithContext(ctx context.Context, dir string, cmd []string, env map[string]string, w io.Writer) error
 	// BinaryExists checks whether the named binary is available in this backend.
 	BinaryExists(dir, binary string) bool
@@ -60,7 +62,6 @@ func (b *HostBackend) ExecWithContext(ctx context.Context, dir string, cmd []str
 }
 
 func (b *HostBackend) BinaryExists(dir, binary string) bool {
-	// Check project-local paths first (vendor/bin, node_modules/.bin)
 	local := []string{
 		filepath.Join(dir, "vendor", "bin", binary),
 		filepath.Join(dir, "node_modules", ".bin", binary),
@@ -108,7 +109,6 @@ func (b *DdevBackend) ExecWithContext(ctx context.Context, dir string, cmd []str
 }
 
 func (b *DdevBackend) BinaryExists(dir, binary string) bool {
-	// For DDEV, check vendor/bin and node_modules/.bin inside the project
 	local := []string{
 		filepath.Join(dir, "vendor", "bin", binary),
 		filepath.Join(dir, "node_modules", ".bin", binary),
@@ -118,20 +118,18 @@ func (b *DdevBackend) BinaryExists(dir, binary string) bool {
 			return true
 		}
 	}
-	// Also accept system-level tools the container likely has (php, composer, node)
 	system := map[string]bool{"php": true, "composer": true, "node": true, "npm": true}
 	return system[binary]
 }
 
 // ResolveBackend returns the appropriate backend for a tool in the given repo root.
 // Priority: per-tool override → global config default → DDEV auto-detect → host
-func ResolveBackend(repoRoot string, tool ToolConfig, globalDefault string) Backend {
+func ResolveBackend(repoRoot string, tool config.ToolConfig, globalDefault string) Backend {
 	name := tool.Backend
 	if name == "" {
 		name = globalDefault
 	}
 
-	// Explicit backend requested
 	switch name {
 	case "ddev":
 		return &DdevBackend{}
@@ -139,7 +137,6 @@ func ResolveBackend(repoRoot string, tool ToolConfig, globalDefault string) Back
 		return &HostBackend{}
 	}
 
-	// Auto-detect DDEV
 	if isDdevRunning(repoRoot) {
 		return &DdevBackend{}
 	}
@@ -163,9 +160,9 @@ func isDdevRunning(repoRoot string) bool {
 	return bytes.Contains(out.Bytes(), []byte(`"running"`))
 }
 
-// resolveCommandForBackend resolves a vendor/node_modules binary path relative
+// ResolveCommandForBackend resolves a vendor/node_modules binary path relative
 // to repo root depending on the tool type and active backend.
-func resolveCommandForBackend(repoRoot string, tool ToolConfig, backend Backend) string {
+func ResolveCommandForBackend(repoRoot string, tool config.ToolConfig, backend Backend) string {
 	cmd := tool.Command
 	switch tool.Type {
 	case "php":
@@ -192,15 +189,8 @@ func (e *BackendAvailabilityError) Error() string {
 	return fmt.Sprintf("tool %q not available via backend %q", e.Tool, e.Backend)
 }
 
-// toolBinaryAvailable reports whether the resolved command path is accessible.
-// For DdevBackend, the check is always skipped — the container is assumed to
-// have every tool it is configured to run.
-// resolvedCmd may be:
-//   - a relative vendor/bin or node_modules/.bin path (checked relative to repoRoot)
-//   - a plain binary name (checked on system PATH)
-//   - an absolute path
-func toolBinaryAvailable(repoRoot, resolvedCmd string, backend Backend) bool {
-	// DDEV container is authoritative — don't try to resolve host paths.
+// ToolBinaryAvailable reports whether the resolved command path is accessible.
+func ToolBinaryAvailable(repoRoot, resolvedCmd string, backend Backend) bool {
 	if _, isDdev := backend.(*DdevBackend); isDdev {
 		return true
 	}
@@ -208,12 +198,10 @@ func toolBinaryAvailable(repoRoot, resolvedCmd string, backend Backend) bool {
 		_, err := os.Stat(resolvedCmd)
 		return err == nil
 	}
-	// Relative local binary (vendor/bin/*, node_modules/.bin/*)
 	if strings.Contains(resolvedCmd, "/") {
 		_, err := os.Stat(filepath.Join(repoRoot, resolvedCmd))
 		return err == nil
 	}
-	// System/PATH binary
 	_, err := exec.LookPath(resolvedCmd)
 	return err == nil
 }
