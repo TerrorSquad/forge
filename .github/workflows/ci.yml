@@ -31,7 +31,7 @@ jobs:
           fi
 
       - name: Build
-        run: go build ./cmd/booster
+        run: go build ./cmd/forge
 
       - name: Snapshot release
         uses: goreleaser/goreleaser-action@v6

@@ -1,6 +1,6 @@
 version: 2
 
-project_name: booster
+project_name: forge
 
 before:
   hooks:
@@ -8,9 +8,9 @@ before:
     - go vet ./...
 
 builds:
-  - id: booster
-    main: ./cmd/booster
-    binary: booster
+  - id: forge
+    main: ./cmd/forge
+    binary: forge
     env:
       - CGO_ENABLED=0
     goos:
@@ -22,9 +22,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/TerrorSquad/gobooster/internal/booster.Version={{.Version}}
-      - -X github.com/TerrorSquad/gobooster/internal/booster.Commit={{.Commit}}
-      - -X github.com/TerrorSquad/gobooster/internal/booster.Date={{.Date}}
+      - -X github.com/TerrorSquad/forge/internal/forge.Version={{.Version}}
+      - -X github.com/TerrorSquad/forge/internal/forge.Commit={{.Commit}}
+      - -X github.com/TerrorSquad/forge/internal/forge.Date={{.Date}}
 
 archives:
   - id: default
@@ -39,7 +39,7 @@ archives:
     files:
       - README.md
       - LICENSE
-      - booster.toml.example
+      - forge.toml.example
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
