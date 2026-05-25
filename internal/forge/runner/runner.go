@@ -298,6 +298,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg config.HookConfig, exec
 	ui.PrintSummaryCI(results, time.Since(hookStart), checkMode)
 
 	if cacheUpdated {
+		evictCache(tc, exec)
 		saveCache(root, tc)
 	}
 
@@ -631,8 +632,20 @@ func safeStashEnabled(hookCfg config.HookConfig) bool {
 }
 
 func shouldSkipTool(name string) bool {
+	return ShouldSkipTool(name)
+}
+
+// ShouldSkipTool reports whether the SKIP_<NAME> environment variable is set,
+// which the user can set to skip a specific tool during a hook run.
+func ShouldSkipTool(name string) bool {
 	key := "SKIP_" + sanitizeEnvKey(name)
 	return isTruthy(os.Getenv(key))
+}
+
+// ResolveToolTimeout returns the effective timeout for a tool, falling back to
+// the execution-level default. Returns 0 if no timeout is configured.
+func ResolveToolTimeout(tool config.ToolConfig, execCfg config.ExecutionConfig) time.Duration {
+	return resolveToolTimeout(tool, execCfg)
 }
 
 func shouldSkipGroup(group string) bool {

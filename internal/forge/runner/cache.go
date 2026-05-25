@@ -51,6 +51,43 @@ func saveCache(repoRoot string, tc toolCache) {
 	_ = os.Rename(tmp, p)
 }
 
+// evictCache removes stale entries from tc according to TTL and size limits
+// read from execCfg. It modifies tc in-place.
+func evictCache(tc toolCache, execCfg config.ExecutionConfig) {
+	// TTL eviction.
+	if execCfg.CacheTTL != "" {
+		ttl, err := time.ParseDuration(execCfg.CacheTTL)
+		if err == nil && ttl > 0 {
+			cutoff := time.Now().Add(-ttl)
+			for k, e := range tc {
+				if e.Timestamp.Before(cutoff) {
+					delete(tc, k)
+				}
+			}
+		}
+	}
+
+	// Size eviction: keep the N newest entries.
+	max := execCfg.CacheMaxSize
+	if max > 0 && len(tc) > max {
+		type kv struct {
+			key string
+			ts  time.Time
+		}
+		entries := make([]kv, 0, len(tc))
+		for k, e := range tc {
+			entries = append(entries, kv{k, e.Timestamp})
+		}
+		// Sort oldest-first so we can delete the tail after keeping the newest max.
+		sort.Slice(entries, func(i, j int) bool {
+			return entries[i].ts.Before(entries[j].ts)
+		})
+		for i := 0; i < len(entries)-max; i++ {
+			delete(tc, entries[i].key)
+		}
+	}
+}
+
 // ClearCache deletes the cache file.
 func ClearCache(repoRoot string) error {
 	p := filepath.Join(repoRoot, cacheFile)

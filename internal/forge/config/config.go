@@ -80,6 +80,14 @@ type ExecutionConfig struct {
 	ToolTimeout    string `toml:"tool_timeout"`
 	Cache          bool   `toml:"cache"`
 	Parallel       bool   `toml:"parallel"`
+	// CacheTTL is the maximum age of a cache entry before it is evicted.
+	// Accepts Go duration strings (e.g. "24h", "7d" is not valid — use "168h").
+	// Zero or empty means entries never expire.
+	CacheTTL string `toml:"cache_ttl"`
+	// CacheMaxSize is the maximum number of entries kept in cache.json.
+	// When the limit is exceeded the oldest entries are evicted first.
+	// Zero means unlimited.
+	CacheMaxSize int `toml:"cache_max_size"`
 }
 
 // WorkspaceConfig defines monorepo member discovery.

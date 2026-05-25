@@ -367,15 +367,34 @@ func listCommand() int {
 		toolNames := config.SortedToolNames(hookCfg.Tools)
 		for _, toolName := range toolNames {
 			tool := hookCfg.Tools[toolName]
-			bknd := ""
-			if tool.Backend != "" {
-				bknd = ui.Dim(" [" + tool.Backend + "]")
+
+			// Effective backend: tool override → execution default → "auto"
+			effectiveBackend := tool.Backend
+			if effectiveBackend == "" {
+				effectiveBackend = cfg.Execution.DefaultBackend
 			}
+			if effectiveBackend == "" {
+				effectiveBackend = "auto"
+			}
+			bknd := ui.Dim(" [" + effectiveBackend + "]")
+
 			grp := ""
 			if tool.Group != "" {
 				grp = ui.Dim(" group:" + tool.Group)
 			}
-			fmt.Fprintf(ui.UI, "    %s  %s%s%s\n", ui.Cyan("→"), toolName, bknd, grp)
+
+			timeout := runner.ResolveToolTimeout(tool, cfg.Execution)
+			tstr := ""
+			if timeout > 0 {
+				tstr = ui.Dim(" timeout:" + timeout.String())
+			}
+
+			skip := ""
+			if runner.ShouldSkipTool(toolName) {
+				skip = " " + ui.Yellow("SKIPPED (env)")
+			}
+
+			fmt.Fprintf(ui.UI, "    %s  %s%s%s%s%s\n", ui.Cyan("→"), toolName, bknd, grp, tstr, skip)
 			fmt.Fprintf(ui.UI, "       %s\n", ui.Dim(tool.Command))
 		}
 		fmt.Fprintln(ui.UI)

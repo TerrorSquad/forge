@@ -236,3 +236,47 @@ func ToolBinaryAvailable(repoRoot, resolvedCmd string, backend Backend) bool {
 	_, err := exec.LookPath(resolvedCmd)
 	return err == nil
 }
+
+// BackendIssue describes a backend availability problem found during doctor.
+type BackendIssue struct {
+	Backend string
+	Message string
+}
+
+// CheckBackendAvailability inspects every backend referenced in cfg and returns
+// a list of issues (empty slice means all backends are reachable).
+func CheckBackendAvailability(repoRoot string, cfg *config.Config) []BackendIssue {
+	// Collect all unique backend names explicitly referenced.
+	names := map[string]struct{}{}
+	if cfg.Execution.DefaultBackend != "" {
+		names[cfg.Execution.DefaultBackend] = struct{}{}
+	}
+	for _, hook := range cfg.Hooks {
+		for _, tool := range hook.Tools {
+			if tool.Backend != "" {
+				names[tool.Backend] = struct{}{}
+			}
+		}
+	}
+
+	var issues []BackendIssue
+	for name := range names {
+		switch name {
+		case "ddev":
+			if !isDdevRunning(repoRoot) {
+				issues = append(issues, BackendIssue{
+					Backend: "ddev",
+					Message: "DDEV web container is not running — tools with backend=ddev will fail",
+				})
+			}
+		case "host", "":
+			// always available
+		default:
+			issues = append(issues, BackendIssue{
+				Backend: name,
+				Message: fmt.Sprintf("unknown backend %q", name),
+			})
+		}
+	}
+	return issues
+}

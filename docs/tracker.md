@@ -89,5 +89,3 @@ Track implementation progress for all forge features.
 | 2026-05-22 | TUI implemented with raw ANSI escape codes instead of bubbletea — Go 1.23 pin + network issues; same visual result with zero new dependencies |
 | 2026-05-22 | `forge ci` is a thin alias for `run pre-commit --all-files --check --no-cache`; CI pipelines get one clean command |
 | 2026-05-22 | B5: graceful binary-not-found skip across all three runners (sequential, TUI, parallel) — mirrors legacy hook behaviour |
-| 2026-05-22 | B6: DeEconnectEconnectApi migrated from Husky/ZX to forge; `forge.toml` committed, `package.json` prepare script updated |
-| 2026-05-22 | B7: `forge migrate` now supports econnect camelCase nested JSON format (`hooks.preCommit`, `stagesFilesAfter`, `runForEachFile`) |

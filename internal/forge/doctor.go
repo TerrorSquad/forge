@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/TerrorSquad/forge/internal/forge/backend"
 	"github.com/TerrorSquad/forge/internal/forge/config"
 	"github.com/TerrorSquad/forge/internal/forge/git"
 )
@@ -113,6 +114,16 @@ func DoctorWithOptions(opts DoctorOptions) error {
 			fmt.Println("tool binaries missing from PATH (cannot auto-fix):")
 			for _, m := range missing {
 				fmt.Printf("- %s\n", m)
+			}
+		}
+
+		backendIssues := backend.CheckBackendAvailability(repoRoot, cfg)
+		if len(backendIssues) == 0 {
+			fmt.Println("backends: ok")
+		} else {
+			fmt.Println("backend issues:")
+			for _, issue := range backendIssues {
+				fmt.Printf("- [%s] %s\n", issue.Backend, issue.Message)
 			}
 		}
 	}

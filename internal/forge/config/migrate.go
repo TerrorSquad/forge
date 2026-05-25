@@ -11,12 +11,12 @@ import (
 // legacyConfig mirrors the shape of .git-hooks.config.json / .git-hooks.config.dist.json
 // Supports two formats:
 //   - flat format: top-level "pre-commit", "commit-msg", "pre-push" (original)
-//   - econnect format: nested "hooks.preCommit" / "hooks.prePush" / "hooks.commitMsg"
+//   - nested format: nested "hooks.preCommit" / "hooks.prePush" / "hooks.commitMsg"
 type legacyConfig struct {
 	PreCommit *legacyHook `json:"pre-commit"`
 	CommitMsg *legacyHook `json:"commit-msg"`
 	PrePush   *legacyHook `json:"pre-push"`
-	// econnect nested format
+	// nested format
 	Hooks *legacyHooksNested `json:"hooks"`
 }
 
@@ -37,7 +37,7 @@ type legacyTool struct {
 	Extensions []string `json:"extensions"`
 }
 
-// legacyHooksNested is the econnect variant: "hooks": { "preCommit": { "tools": { "ESLint": {...} } } }
+// legacyHooksNested is the nested variant: "hooks": { "preCommit": { "tools": { "ESLint": {...} } } }
 type legacyHooksNested struct {
 	PreCommit *legacyHookNested `json:"preCommit"`
 	CommitMsg *legacyHookNested `json:"commitMsg"`
