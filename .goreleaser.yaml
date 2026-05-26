@@ -74,7 +74,8 @@ release:
   name_template: "{{.ProjectName}} v{{.Version}}"
 
 brews:
-  - repository:
+  - name: forge-git
+    repository:
       owner: TerrorSquad
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"

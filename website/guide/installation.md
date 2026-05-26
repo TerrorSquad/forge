@@ -4,7 +4,7 @@
 
 ```sh
 brew tap TerrorSquad/tap
-brew install forge
+brew install forge-git
 ```
 
 ## curl installer
@@ -38,6 +38,8 @@ forge version
 ```
 forge v1.0.0 (abc1234, 2024-01-01)
 ```
+
+> **Note:** The Homebrew formula is named `forge-git` to avoid conflicts with an existing `forge` package. Install with `brew install forge-git` but the binary is named `forge`.
 
 ## Next steps
 
