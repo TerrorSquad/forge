@@ -5,7 +5,7 @@
 set -eu
 
 REPO="${FORGE_REPO:-TerrorSquad/forge}"
-INSTALL_DIR="${FORGE_INSTALL_DIR:-/usr/local/bin}"
+INSTALL_DIR="${FORGE_INSTALL_DIR:-$HOME/.local/bin}"
 VERSION=""
 FORGE_URL=""
 
