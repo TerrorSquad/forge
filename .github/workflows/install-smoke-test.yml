@@ -11,8 +11,8 @@ jobs:
     name: Install Script Smoke Test
     runs-on: ubuntu-latest
     env:
-      GOCACHE: ${{ runner.temp }}/go-build
-      GOMODCACHE: ${{ runner.temp }}/go/pkg/mod
+      GOCACHE: ${{ github.workspace }}/.cache/go-build
+      GOMODCACHE: ${{ github.workspace }}/.cache/go/pkg/mod
 
     steps:
       - name: Checkout repository
@@ -33,8 +33,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ runner.temp }}/go-build
-            ${{ runner.temp }}/go/pkg/mod
+            ${{ github.workspace }}/.cache/go-build
+            ${{ github.workspace }}/.cache/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
