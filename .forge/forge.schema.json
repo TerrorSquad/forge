@@ -1,0 +1,269 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Forge Configuration",
+  "description": "Configuration for forge git hooks runner. See: https://github.com/TerrorSquad/forge",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "execution": {
+      "type": "object",
+      "description": "Repository-wide execution defaults applied to all hooks and tools.",
+      "additionalProperties": false,
+      "properties": {
+        "default_backend": {
+          "type": "string",
+          "enum": ["ddev", "host"],
+          "description": "Default execution backend. 'ddev' runs commands inside the DDEV container (vendor/bin/ resolved inside container). 'host' runs on the host machine."
+        },
+        "tool_timeout": {
+          "type": "string",
+          "description": "Global tool timeout, e.g. '300s', '5m'. Empty means no limit. Overridable per-tool.",
+          "pattern": "^[0-9]+(ns|us|ms|s|m|h)$",
+          "examples": ["120s", "5m", "300s"]
+        },
+        "cache": {
+          "type": "boolean",
+          "description": "Enable run cache globally. Tools with cache=true skip execution when input file hashes are unchanged."
+        },
+        "parallel": {
+          "type": "boolean",
+          "description": "Run tools within a hook concurrently. Can be overridden per hook."
+        }
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "description": "Monorepo workspace configuration.",
+      "additionalProperties": false,
+      "properties": {
+        "members": {
+          "type": "array",
+          "description": "Glob patterns for monorepo member directories, e.g. ['packages/*', 'apps/*'].",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "description": "Git hook configurations, keyed by the git hook name.",
+      "propertyNames": {
+        "enum": [
+          "pre-commit",
+          "commit-msg",
+          "prepare-commit-msg",
+          "pre-push",
+          "post-commit",
+          "post-merge",
+          "post-rewrite",
+          "post-checkout",
+          "pre-rebase",
+          "pre-merge-commit",
+          "pre-auto-gc"
+        ]
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/hookConfig"
+      }
+    }
+  },
+  "definitions": {
+    "hookConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this hook is active. Set to false to disable without removing the config."
+        },
+        "parallel": {
+          "type": "boolean",
+          "description": "Run tools in this hook concurrently. Overrides [execution].parallel for this hook only."
+        },
+        "safe_stash": {
+          "type": "boolean",
+          "description": "Stash unstaged changes before running fixers (tools with restage=true), then restore them after. Prevents fixers from including work-in-progress changes in the commit. Auto-enabled when any tool has restage=true. Set to false to opt out."
+        },
+        "tools": {
+          "type": "object",
+          "description": "Named tools to run for this hook. Keys become the tool name shown in output and used for SKIP_<NAME>=1.",
+          "additionalProperties": {
+            "$ref": "#/definitions/toolConfig"
+          }
+        },
+        "policy": {
+          "$ref": "#/definitions/commitMessagePolicy",
+          "description": "Commit message validation policy. Applies to commit-msg and prepare-commit-msg hooks."
+        }
+      }
+    },
+    "toolConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "The executable to run. For type='php', resolved from vendor/bin/. For type='node', resolved from node_modules/.bin/. For type='system', uses PATH directly.",
+          "minLength": 1
+        },
+        "args": {
+          "type": "array",
+          "description": "Arguments passed to the command before any file arguments.",
+          "items": { "type": "string" }
+        },
+        "type": {
+          "type": "string",
+          "enum": ["php", "node", "system"],
+          "description": "Determines how the command binary is resolved. 'php' → vendor/bin/, 'node' → node_modules/.bin/, 'system' → PATH."
+        },
+        "backend": {
+          "type": "string",
+          "enum": ["ddev", "host"],
+          "description": "Override the execution backend for this tool only. Defaults to [execution].default_backend."
+        },
+        "extensions": {
+          "type": "array",
+          "description": "Only run this tool when staged files with these extensions are present. Empty = run for all staged files.",
+          "items": {
+            "type": "string",
+            "pattern": "^\\.",
+            "examples": [".php", ".ts", ".vue", ".go"]
+          }
+        },
+        "include_patterns": {
+          "type": "array",
+          "description": "Glob patterns to further filter which staged files are passed to the tool.",
+          "items": { "type": "string" }
+        },
+        "exclude_patterns": {
+          "type": "array",
+          "description": "Glob patterns for staged files to exclude from the tool's input.",
+          "items": { "type": "string" }
+        },
+        "pass_files": {
+          "type": "boolean",
+          "description": "Pass matched staged file paths as arguments to the command. Default: true. Set to false for whole-project tools (e.g. phpstan, jest)."
+        },
+        "run_per_file": {
+          "type": "boolean",
+          "description": "Run the command once per matched file instead of once with all files as arguments. Useful for tools that only accept a single input (e.g. php -l)."
+        },
+        "restage": {
+          "type": "boolean",
+          "description": "Re-stage matched files after the tool runs. Use this for auto-fix tools (prettier, ecs, rector) so fixes are included in the commit."
+        },
+        "on_failure": {
+          "type": "string",
+          "enum": ["stop", "continue"],
+          "description": "'stop' (default) aborts the hook immediately when this tool fails. 'continue' logs the failure but runs remaining tools — use for non-blocking/informational tools."
+        },
+        "group": {
+          "type": "string",
+          "description": "Logical group name shown in output (e.g. 'lint', 'format', 'analysis', 'test', 'artifacts'). No functional effect.",
+          "examples": ["lint", "format", "analysis", "test", "refactor", "artifacts"]
+        },
+        "when": {
+          "type": "string",
+          "description": "Conditional expression controlling when this tool runs."
+        },
+        "timeout": {
+          "type": "string",
+          "description": "Per-tool timeout, e.g. '120s', '2m'. Overrides [execution].tool_timeout.",
+          "pattern": "^[0-9]+(ns|us|ms|s|m|h)$",
+          "examples": ["30s", "2m", "300s"]
+        },
+        "cache": {
+          "type": "boolean",
+          "description": "Cache this tool's result by hashing its input files. Skips execution if inputs are unchanged since last successful run."
+        },
+        "check_args": {
+          "type": "array",
+          "description": "Arguments to use in place of 'args' when forge runs in --check mode (read-only, no fixes).",
+          "items": { "type": "string" }
+        },
+        "check_fail_if_output": {
+          "type": "boolean",
+          "description": "In --check mode, treat any stdout output as a failure (useful for diff-based tools)."
+        },
+        "depends_on": {
+          "type": "array",
+          "description": "Names of tools in the same hook that must complete before this tool starts (parallel mode only).",
+          "items": { "type": "string" }
+        },
+        "stage_outputs": {
+          "type": "array",
+          "description": "File paths (relative to repo root) to 'git add' after this tool runs, regardless of exit code. Useful for generated artifacts such as architecture diagrams or API specs that should be included in the next commit.",
+          "items": { "type": "string" }
+        },
+        "show_output": {
+          "type": "boolean",
+          "description": "Print the tool's stdout/stderr even on success. Useful for test runners where you want to see pass/fail counts and summary output after every run."
+        },
+        "env": {
+          "type": "object",
+          "description": "Extra environment variables injected only for this tool's process. Merged on top of the parent process environment. Useful for setting memory limits, disabling colours, or passing secrets without polluting the global shell environment.",
+          "additionalProperties": { "type": "string" },
+          "examples": [
+            { "PHPSTAN_MEMORY_LIMIT": "512M" },
+            { "NODE_ENV": "production", "CI": "1" }
+          ]
+        }
+      }
+    },
+    "commitMessagePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Rules for validating and automatically modifying commit messages.",
+      "properties": {
+        "conventional_commits": {
+          "type": "boolean",
+          "description": "Enforce Conventional Commits format: 'type(scope): description'. Valid types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert."
+        },
+        "append_ticket_footer": {
+          "type": "boolean",
+          "description": "Automatically append a ticket footer (e.g. 'Closes: PRJ-123') derived from the branch name. Does nothing if no ticket ID is found."
+        },
+        "require_ticket": {
+          "type": "boolean",
+          "description": "Fail the commit if no ticket ID (e.g. PRJ-123) is found in the branch name."
+        },
+        "footer_label": {
+          "type": "string",
+          "description": "Label to use for the ticket footer line. Default: 'Closes'. Change to 'Fixes', 'Refs', etc. to match your project convention.",
+          "default": "Closes",
+          "examples": ["Closes", "Fixes", "Refs"]
+        },
+        "validate_branch_name": {
+          "type": "boolean",
+          "description": "Validate that the current branch name matches branch_pattern before allowing the commit."
+        },
+        "branch_pattern": {
+          "type": "string",
+          "description": "Regular expression the branch name must match when validate_branch_name is true. Skipped branches are exempt.",
+          "format": "regex",
+          "examples": [
+            "^(feature|fix|chore|story|task|bug)/((?:PRJ|ERM)-[0-9]+-[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*|[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*)$"
+          ]
+        },
+        "skipped_branches": {
+          "type": "array",
+          "description": "Branch names that bypass ALL commit-msg validation (conventional commits, branch name check, ticket footer). Typically your long-lived branches.",
+          "items": { "type": "string" },
+          "examples": [["main", "master", "development", "develop", "develop/test"]]
+        },
+        "prepend_ticket": {
+          "type": "boolean",
+          "description": "Prepend the ticket ID to the commit message subject. For use with the prepare-commit-msg hook only."
+        },
+        "skip_on_merge": {
+          "type": "boolean",
+          "description": "Skip policy application for merge commits. For prepare-commit-msg hook."
+        },
+        "skip_if_present": {
+          "type": "boolean",
+          "description": "Skip prepending the ticket ID if it is already present in the commit message. For prepare-commit-msg hook."
+        }
+      }
+    }
+  }
+}

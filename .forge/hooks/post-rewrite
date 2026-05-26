@@ -3,15 +3,13 @@ set -eu
 
 # Prefer system-installed binary; fall back to repo-local binary (dev workflow)
 if command -v forge >/dev/null 2>&1; then
-FORGE_PUSH_REMOTE="$1" FORGE_PUSH_URL="$2" \
-  exec forge run pre-push "$@"
+  exec forge run post-rewrite "$@"
 fi
 
 # Local dev: repo root has a compiled binary
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
 if [ -x "$REPO_ROOT/forge" ]; then
-FORGE_PUSH_REMOTE="$1" FORGE_PUSH_URL="$2" \
-  exec "$REPO_ROOT/forge" run pre-push "$@"
+  exec "$REPO_ROOT/forge" run post-rewrite "$@"
 fi
 
 echo "forge not found on PATH and not found at $REPO_ROOT/forge." >&2
