@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.11](https://github.com/TerrorSquad/forge/compare/v1.0.10...v1.0.11) (2026-05-26)
+
+
+### Bug Fixes
+
+* install smoke tests and dist build output ([423417e](https://github.com/TerrorSquad/forge/commit/423417e4ccd27f3c017174b640ad28c4ed950753))
+
 ## [1.0.10](https://github.com/TerrorSquad/forge/compare/v1.0.9...v1.0.10) (2026-05-26)
 
 
