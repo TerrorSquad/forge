@@ -88,6 +88,15 @@ if [ -z "$BINARY_PATH" ]; then
 fi
 
 DEST="$INSTALL_DIR/forge"
+if [ ! -d "$INSTALL_DIR" ]; then
+  echo "Creating install directory $INSTALL_DIR"
+  if [ -w "$(dirname "$INSTALL_DIR")" ]; then
+    mkdir -p "$INSTALL_DIR"
+  else
+    sudo mkdir -p "$INSTALL_DIR"
+  fi
+fi
+
 if [ -w "$INSTALL_DIR" ]; then
   mv "$BINARY_PATH" "$DEST"
 else
