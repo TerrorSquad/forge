@@ -1,0 +1,41 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'mise.toml'
+      - '.goreleaser.yaml'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.github/workflows/release-please.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/docs.yml'
+      - 'install.sh'
+  workflow_dispatch:
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create or update release PR
+        uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
