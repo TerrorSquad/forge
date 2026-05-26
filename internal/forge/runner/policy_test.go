@@ -243,7 +243,8 @@ func initBareGitRepo(t *testing.T) string {
 
 func createBranchInRepo(t *testing.T, dir, branch string) {
 	t.Helper()
-	runCmd(t, dir, "git", "checkout", "-b", branch)
+	// Use -B to create or reset the branch to HEAD; avoids errors if branch exists.
+	runCmd(t, dir, "git", "checkout", "-B", branch)
 }
 
 func createBranchInRepoIfNotExists(t *testing.T, dir, branch string) {
