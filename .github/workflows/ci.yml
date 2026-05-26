@@ -15,7 +15,7 @@ jobs:
       - name: Extract Go version from mise.toml
         id: go-version
         run: |
-          VERSION=$(grep '^go = ' mise.toml | sed 's/go = "\(.*\)"/\1/')
+          VERSION=$(grep '^go = ' mise.toml | awk -F'"' '{print $2}')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Set up Go

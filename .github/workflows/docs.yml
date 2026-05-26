@@ -27,13 +27,13 @@ jobs:
       - name: Extract Node version from mise.toml
         id: node-version
         run: |
-          VERSION=$(grep '^node = ' mise.toml | sed 's/node = "\(.*\)"/\1/')
+          VERSION=$(grep '^node = ' mise.toml | awk -F'"' '{print $2}')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Extract pnpm version from mise.toml
         id: pnpm-version
         run: |
-          VERSION=$(grep '^pnpm = ' mise.toml | sed 's/pnpm = "\(.*\)"/\1/')
+          VERSION=$(grep '^pnpm = ' mise.toml | awk -F'"' '{print $2}')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Setup Node
