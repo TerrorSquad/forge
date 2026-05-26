@@ -10,4 +10,5 @@ website/.vitepress/cache/
 demo.gif
 demo.mp4
 
+dist/forge
 !/.forge

@@ -1,0 +1,58 @@
+name: Install Smoke Test
+
+on:
+  push:
+    branches:
+      - feature/install-smoke-tests
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    name: Install Script Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Go version from mise.toml
+        id: go-version
+        run: |
+          VERSION=$(grep '^go = ' mise.toml | cut -d'"' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ steps.go-version.outputs.version }}
+          cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build forge binary
+        run: |
+          mkdir -p dist
+          go build -o dist/forge ./cmd/forge
+
+      - name: Package test tarball
+        run: |
+          TEST_VERSION="0.0.0-test"
+          mkdir -p dist
+          tar -czf dist/forge_${TEST_VERSION}_linux_amd64.tar.gz -C dist forge
+
+      - name: Run install script against local tarball
+        env:
+          FORGE_URL: "file://${{ github.workspace }}/dist/forge_0.0.0-test_linux_amd64.tar.gz"
+        run: |
+          rm -rf /tmp/forge-smoke-test
+          mkdir -p /tmp/forge-smoke-test
+          sh ./install.sh --version v0.0.0-test --dir /tmp/forge-smoke-test --url "$FORGE_URL"
+          /tmp/forge-smoke-test/forge --version

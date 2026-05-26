@@ -4,18 +4,21 @@
 # Or: curl -fsSL https://raw.githubusercontent.com/TerrorSquad/forge/main/install.sh | sh -s -- --version v0.2.0
 set -eu
 
-REPO="TerrorSquad/forge"
+REPO="${FORGE_REPO:-TerrorSquad/forge}"
 INSTALL_DIR="${FORGE_INSTALL_DIR:-/usr/local/bin}"
 VERSION=""
+FORGE_URL=""
 
 # Parse flags
 while [ $# -gt 0 ]; do
   case "$1" in
     --version) VERSION="$2"; shift 2 ;;
     --dir)     INSTALL_DIR="$2"; shift 2 ;;
+    --url)     FORGE_URL="$2"; shift 2 ;;
+    --repo)    REPO="$2"; shift 2 ;;
     *) echo "Unknown flag: $1" >&2; exit 1 ;;
   esac
-done
+ done
 
 # Detect OS / arch
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -40,24 +43,57 @@ if [ -z "$VERSION" ]; then
     | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
 fi
 
+VERSION="${VERSION#v}"
+
 echo "Installing forge ${VERSION} (${OS}/${ARCH}) to ${INSTALL_DIR}"
 
-FILENAME="forge_${VERSION#v}_${OS}_${ARCH}.tar.gz"
-URL="https://github.com/${REPO}/releases/download/${VERSION}/${FILENAME}"
+if [ -n "$FORGE_URL" ]; then
+  URL="$FORGE_URL"
+else
+  FILENAME="forge_${VERSION}_${OS}_${ARCH}.tar.gz"
+  URL="https://github.com/${REPO}/releases/download/v${VERSION}/${FILENAME}"
+fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-curl -fsSL "$URL" -o "$TMP/forge.tar.gz"
-tar -xzf "$TMP/forge.tar.gz" -C "$TMP"
-
-# May need sudo for system dirs
-if [ -w "$INSTALL_DIR" ]; then
-  mv "$TMP/forge" "$INSTALL_DIR/forge"
+if [ -n "$FORGE_URL" ]; then
+  case "$FORGE_URL" in
+    file://*)
+      FILE_PATH="${FORGE_URL#file://}"
+      if [ ! -f "$FILE_PATH" ]; then
+        echo "Error: local file not found: $FILE_PATH" >&2
+        exit 1
+      fi
+      cp "$FILE_PATH" "$TMP/forge.tar.gz"
+      ;;
+    *)
+      if [ -f "$FORGE_URL" ]; then
+        cp "$FORGE_URL" "$TMP/forge.tar.gz"
+      else
+        curl -fsSL "$FORGE_URL" -o "$TMP/forge.tar.gz"
+      fi
+      ;;
+  esac
 else
-  echo "Need elevated privileges to write to $INSTALL_DIR"
-  sudo mv "$TMP/forge" "$INSTALL_DIR/forge"
+  curl -fsSL "$URL" -o "$TMP/forge.tar.gz"
 fi
 
-chmod +x "$INSTALL_DIR/forge"
-echo "Installed: $("$INSTALL_DIR/forge" --version 2>/dev/null || echo "$INSTALL_DIR/forge")"
+tar -xzf "$TMP/forge.tar.gz" -C "$TMP"
+
+BINARY_PATH="$(find "$TMP" -maxdepth 2 -type f -name forge -print -quit)"
+if [ -z "$BINARY_PATH" ]; then
+  echo "Error: could not find forge binary in the archive" >&2
+  exit 1
+fi
+
+DEST="$INSTALL_DIR/forge"
+if [ -w "$INSTALL_DIR" ]; then
+  mv "$BINARY_PATH" "$DEST"
+else
+  echo "Need elevated privileges to write to $INSTALL_DIR"
+  sudo mv "$BINARY_PATH" "$DEST"
+fi
+
+chmod +x "$DEST"
+echo "Installed: $("$DEST" --version 2>/dev/null || echo "$DEST")"
