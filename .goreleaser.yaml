@@ -68,7 +68,7 @@ changelog:
 release:
   github:
     owner: TerrorSquad
-    name: gobooster
+    name: forge
   draft: false
   prerelease: auto
   name_template: "{{.ProjectName}} v{{.Version}}"
@@ -78,7 +78,7 @@ brews:
       owner: TerrorSquad
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: https://github.com/TerrorSquad/gobooster
+    homepage: https://github.com/TerrorSquad/forge
     description: Policy-driven git hook runner — fast, portable, no Node.js required.
     license: MIT
     directory: Formula

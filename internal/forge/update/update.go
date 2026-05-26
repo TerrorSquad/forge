@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	defaultReleasesURL = "https://api.github.com/repos/TerrorSquad/gobooster/releases/latest"
+	defaultReleasesURL = "https://api.github.com/repos/TerrorSquad/forge/releases/latest"
 	envUpdateURL       = "FORGE_UPDATE_URL"
 	httpTimeout        = 30 * time.Second
 )
@@ -130,7 +130,7 @@ func fetchRelease(version string) (*Release, error) {
 	url := os.Getenv(envUpdateURL)
 	if url == "" {
 		if version != "" {
-			url = fmt.Sprintf("https://api.github.com/repos/TerrorSquad/gobooster/releases/tags/%s", version)
+			url = fmt.Sprintf("https://api.github.com/repos/TerrorSquad/forge/releases/tags/%s", version)
 		} else {
 			url = defaultReleasesURL
 		}

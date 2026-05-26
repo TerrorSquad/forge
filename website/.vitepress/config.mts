@@ -3,10 +3,10 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'forge',
   description: 'Policy-driven git hook runner — fast, portable, no Node.js required.',
-  base: '/gobooster/',
+  base: '/forge/',
 
   head: [
-    ['link', { rel: 'icon', href: '/gobooster/favicon.ico' }],
+    ['link', { rel: 'icon', href: '/forge/favicon.ico' }],
   ],
 
   themeConfig: {
@@ -15,10 +15,10 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/installation' },
       { text: 'Reference', link: '/reference/cli' },
-      { text: 'Changelog', link: 'https://github.com/TerrorSquad/gobooster/blob/master/CHANGELOG.md' },
+      { text: 'Changelog', link: 'https://github.com/TerrorSquad/forge/blob/master/CHANGELOG.md' },
       {
         text: 'GitHub',
-        link: 'https://github.com/TerrorSquad/gobooster',
+        link: 'https://github.com/TerrorSquad/forge',
       },
     ],
 
@@ -53,7 +53,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/TerrorSquad/gobooster' },
+      { icon: 'github', link: 'https://github.com/TerrorSquad/forge' },
     ],
 
     footer: {
@@ -66,7 +66,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/TerrorSquad/gobooster/edit/master/website/:path',
+      pattern: 'https://github.com/TerrorSquad/forge/edit/master/website/:path',
       text: 'Edit this page on GitHub',
     },
   },

@@ -11,7 +11,7 @@ hero:
       link: /guide/installation
     - theme: alt
       text: View on GitHub
-      link: https://github.com/TerrorSquad/gobooster
+      link: https://github.com/TerrorSquad/forge
 
 features:
   - icon: ⚡
