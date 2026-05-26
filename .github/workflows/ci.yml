@@ -3,7 +3,27 @@ name: CI
 on:
   push:
     branches: ["main", "master"]
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'mise.toml'
+      - '.goreleaser.yaml'
+      - '.github/workflows/ci.yml'
+      - 'install.sh'
+      - 'README.md'
   pull_request:
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'mise.toml'
+      - '.goreleaser.yaml'
+      - '.github/workflows/ci.yml'
+      - 'install.sh'
+      - 'README.md'
 
 jobs:
   build:
@@ -23,6 +43,16 @@ jobs:
         with:
           go-version: ${{ steps.go-version.outputs.version }}
           cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: go vet
         run: go vet ./...
