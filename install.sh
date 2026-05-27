@@ -5,7 +5,7 @@
 set -eu
 
 REPO="${FORGE_REPO:-TerrorSquad/forge}"
-INSTALL_DIR="${FORGE_INSTALL_DIR:-/usr/local/bin}"
+INSTALL_DIR="${FORGE_INSTALL_DIR:-$HOME/.local/bin}"
 VERSION=""
 FORGE_URL=""
 
@@ -88,12 +88,18 @@ if [ -z "$BINARY_PATH" ]; then
 fi
 
 DEST="$INSTALL_DIR/forge"
-if [ -w "$INSTALL_DIR" ]; then
-  mv "$BINARY_PATH" "$DEST"
-else
-  echo "Need elevated privileges to write to $INSTALL_DIR"
-  sudo mv "$BINARY_PATH" "$DEST"
+if [ ! -d "$INSTALL_DIR" ]; then
+  echo "Creating install directory $INSTALL_DIR"
+  mkdir -p "$INSTALL_DIR"
 fi
+
+if [ ! -w "$INSTALL_DIR" ]; then
+  echo "Error: cannot write to $INSTALL_DIR."
+  echo "Run with --dir ~/.local/bin or set FORGE_INSTALL_DIR to a writable path."
+  exit 1
+fi
+
+mv "$BINARY_PATH" "$DEST"
 
 chmod +x "$DEST"
 echo "Installed: $("$DEST" --version 2>/dev/null || echo "$DEST")"

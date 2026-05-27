@@ -61,7 +61,7 @@ jobs:
 
       - name: gofmt check
         run: |
-          files=$(gofmt -l .)
+          files=$(find . -name '*.go' ! -path './.cache/*' | sort | xargs gofmt -l)
           if [ -n "$files" ]; then
             echo "These files are not gofmt'd:"
             echo "$files"
