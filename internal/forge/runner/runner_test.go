@@ -95,6 +95,44 @@ func TestRunHookWithOptions_SkipsDuringGitSequencerOperation(t *testing.T) {
 	}
 }
 
+func TestRunHookWithOptions_SkipsDuringGitSequencerOperation_Rebase(t *testing.T) {
+	dir := initBareGitRepo(t)
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	writeFile(t, filepath.Join(dir, ".git", "REBASE_HEAD"), "abc123")
+
+	err := RunHookWithOptions("commit-msg", "", RunOptions{})
+	if err == nil {
+		t.Fatal("expected hook skip error")
+	}
+	if !errors.Is(err, config.ErrHookSkipped) {
+		t.Fatalf("expected ErrHookSkipped, got %v", err)
+	}
+}
+
+func TestRunHookWithOptions_SkipsDuringGitSequencerOperation_Revert(t *testing.T) {
+	dir := initBareGitRepo(t)
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	writeFile(t, filepath.Join(dir, ".git", "REVERT_HEAD"), "abc123")
+
+	err := RunHookWithOptions("pre-push", "", RunOptions{})
+	if err == nil {
+		t.Fatal("expected hook skip error")
+	}
+	if !errors.Is(err, config.ErrHookSkipped) {
+		t.Fatalf("expected ErrHookSkipped, got %v", err)
+	}
+}
+
 func TestRunHookCfg_PreCommitSkipsPassFilesFalseWhenNoMatchingStagedFiles(t *testing.T) {
 	dir := initBareGitRepo(t)
 
