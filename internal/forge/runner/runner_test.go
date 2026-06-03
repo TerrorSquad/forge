@@ -1,7 +1,10 @@
 package runner
 
 import (
+	"bytes"
+	"errors"
 	"github.com/TerrorSquad/forge/internal/forge/config"
+	"github.com/TerrorSquad/forge/internal/forge/ui"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,6 +73,53 @@ enabled = true
 	}
 	if !strings.Contains(err.Error(), "pre-commit") {
 		t.Errorf("expected error to mention pre-commit, got: %v", err)
+	}
+}
+
+func TestRunHookWithOptions_SkipsDuringGitSequencerOperation(t *testing.T) {
+	dir := initBareGitRepo(t)
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	writeFile(t, filepath.Join(dir, ".git", "MERGE_HEAD"), "abc123")
+
+	err := RunHookWithOptions("pre-commit", "", RunOptions{})
+	if err == nil {
+		t.Fatal("expected hook skip error")
+	}
+	if !errors.Is(err, config.ErrHookSkipped) {
+		t.Fatalf("expected ErrHookSkipped, got %v", err)
+	}
+}
+
+func TestRunHookCfg_PreCommitSkipsPassFilesFalseWhenNoMatchingStagedFiles(t *testing.T) {
+	dir := initBareGitRepo(t)
+
+	cfg := config.HookConfig{
+		Enabled: boolPtr(true),
+		Tools: map[string]config.ToolConfig{
+			"vue-tsc": {
+				Command:    "echo",
+				Type:       "system",
+				Extensions: []string{".ts", ".tsx", ".vue"},
+				PassFiles:  boolPtr(false),
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	ui.UI = &buf
+	t.Cleanup(func() { ui.UI = os.Stdout })
+
+	err := runHookCfg(dir, "pre-commit", "", cfg, config.ExecutionConfig{}, []string{"package.json"}, RunOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(buf.String(), "skip") {
+		t.Fatalf("expected tool to be skipped when no staged files match extensions, got output: %q", buf.String())
 	}
 }
 

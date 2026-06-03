@@ -101,6 +101,41 @@ func AllTrackedFiles(repoRoot string) ([]string, error) {
 	return res, nil
 }
 
+// IsSequencerOperation returns true when Git is in a merge/rebase/cherry-pick/revert/bisect/am operation.
+func IsSequencerOperation(repoRoot string) (bool, error) {
+	gitDir, err := RunGit(repoRoot, "rev-parse", "--git-dir")
+	if err != nil {
+		return false, err
+	}
+	if !filepath.IsAbs(gitDir) {
+		gitDir = filepath.Join(repoRoot, gitDir)
+	}
+
+	paths := []string{
+		"MERGE_HEAD",
+		"CHERRY_PICK_HEAD",
+		"REVERT_HEAD",
+		"BISECT_LOG",
+		"REBASE_HEAD",
+		"AM_HEAD",
+		"sequencer",
+		"rebase-apply",
+		"rebase-merge",
+	}
+
+	for _, p := range paths {
+		if exists(filepath.Join(gitDir, p)) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 const stashLabel = "forge-pre-commit-safety"
 
 // HasUnstagedChanges returns true when there are unstaged modifications or untracked files.

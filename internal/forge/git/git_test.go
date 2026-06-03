@@ -245,6 +245,43 @@ func TestLocalHooksPath_ReturnsConfiguredPath(t *testing.T) {
 	}
 }
 
+func TestIsSequencerOperation_CleanRepo(t *testing.T) {
+	dir := initRepo(t)
+	active, err := IsSequencerOperation(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if active {
+		t.Error("expected no sequencer operation in a clean repo")
+	}
+}
+
+func TestIsSequencerOperation_DetectsMerge(t *testing.T) {
+	dir := initRepo(t)
+	writeFile(t, filepath.Join(dir, ".git", "MERGE_HEAD"), "abc123")
+
+	active, err := IsSequencerOperation(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !active {
+		t.Error("expected merge operation to be detected")
+	}
+}
+
+func TestIsSequencerOperation_DetectsCherryPick(t *testing.T) {
+	dir := initRepo(t)
+	writeFile(t, filepath.Join(dir, ".git", "CHERRY_PICK_HEAD"), "abc123")
+
+	active, err := IsSequencerOperation(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !active {
+		t.Error("expected cherry-pick operation to be detected")
+	}
+}
+
 // ---------- HasUnstagedChanges ----------
 
 func TestHasUnstagedChanges_CleanRepo(t *testing.T) {
