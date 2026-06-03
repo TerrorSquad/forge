@@ -364,7 +364,7 @@ func listCommand() int {
 		}
 		fmt.Fprintf(ui.UI, "%s %s%s\n", statusIcon, ui.Bold(hookName), parallel)
 
-		toolNames := config.SortedToolNames(hookCfg.Tools)
+		toolNames := hookCfg.OrderedToolNames()
 		for _, toolName := range toolNames {
 			tool := hookCfg.Tools[toolName]
 

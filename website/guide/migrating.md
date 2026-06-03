@@ -31,7 +31,7 @@ rm .git-hooks.config.json
 
 | Behaviour | `.git-hooks.config.json` | forge.toml |
 |-----------|--------------------------|------------|
-| Tool ordering | Array order | Alphabetical key order |
+| Tool ordering | Array order | Declaration order in `forge.toml` |
 | Skip env vars | `SKIP_PRECOMMIT=1` | Same |
 | DDEV detection | Manual wrappers | `backend = "ddev"` |
 | Commit-msg policy | Not supported | `[hooks.commit-msg.policy]` |

@@ -162,7 +162,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg config.HookConfig, exec
 	if IsParallelMode(hookCfg, exec) {
 		return runHookCfgParallel(root, hookName, hookCfg, exec, files, opts)
 	}
-	toolNames := applyToolFilter(config.SortedToolNames(hookCfg.Tools), hookCfg.Tools, opts)
+	toolNames := applyToolFilter(hookCfg.OrderedToolNames(), hookCfg.Tools, opts)
 	if len(toolNames) == 0 {
 		fmt.Fprintf(ui.UI, "%s\n", ui.Dim("no tools configured for "+hookName))
 		return nil

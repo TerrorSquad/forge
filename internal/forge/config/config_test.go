@@ -169,6 +169,34 @@ pass_files = false
 	}
 }
 
+func TestLoadConfig_PreservesToolDeclarationOrder(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "forge.toml"), `
+[hooks.pre-commit.tools.gofmt]
+command = "gofmt"
+
+[hooks.pre-commit.tools.golangci]
+command = "golangci-lint run"
+
+[hooks.pre-commit.tools.eslint]
+command = "eslint"
+`)
+	cfg, _, err := LoadConfig(dir)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	toolNames := cfg.Hooks["pre-commit"].OrderedToolNames()
+	want := []string{"gofmt", "golangci", "eslint"}
+	if len(toolNames) != len(want) {
+		t.Fatalf("expected %d tools, got %d", len(want), len(toolNames))
+	}
+	for i := range want {
+		if toolNames[i] != want[i] {
+			t.Errorf("tool[%d] = %q, want %q", i, toolNames[i], want[i])
+		}
+	}
+}
+
 func TestInitConfig_CreatesFile(t *testing.T) {
 	dir := t.TempDir()
 	orig, _ := os.Getwd()

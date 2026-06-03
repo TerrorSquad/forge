@@ -216,7 +216,7 @@ forge doctor
 - `pre-commit`
   - reads staged files (`git diff --cached --name-only --diff-filter=ACMR`)
   - filters files by configured extensions/patterns
-  - runs tools in alphabetical order
+  - runs tools in the order they are declared in `forge.toml`
   - re-stages files for tools with `restage = true`
 - `commit-msg`
   - validates conventional commit subject (if enabled)

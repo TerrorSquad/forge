@@ -51,7 +51,7 @@ func ValidateConfig(cfg *config.Config) []ValidationIssue {
 	for _, hookName := range hookNames {
 		hookCfg := cfg.Hooks[hookName]
 
-		for _, toolName := range config.SortedToolNames(hookCfg.Tools) {
+		for _, toolName := range hookCfg.OrderedToolNames() {
 			tool := hookCfg.Tools[toolName]
 
 			// Command is required.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -35,6 +36,7 @@ type HookConfig struct {
 	SafeStash *bool                 `toml:"safe_stash"`
 	Tools     map[string]ToolConfig `toml:"tools"`
 	Policy    *CommitMessagePolicy  `toml:"policy"`
+	toolOrder []string
 }
 
 type CommitMessagePolicy struct {
@@ -119,6 +121,93 @@ func SortedToolNames(tools map[string]ToolConfig) []string {
 	return names
 }
 
+// OrderedToolNames returns tool names in the order declared in the config file.
+// Tools not present in the declaration order are appended alphabetically.
+func (h HookConfig) OrderedToolNames() []string {
+	if len(h.toolOrder) == 0 {
+		return SortedToolNames(h.Tools)
+	}
+
+	names := make([]string, 0, len(h.Tools))
+	seen := map[string]struct{}{}
+	for _, name := range h.toolOrder {
+		if _, ok := h.Tools[name]; ok {
+			if _, already := seen[name]; !already {
+				names = append(names, name)
+				seen[name] = struct{}{}
+			}
+		}
+	}
+
+	if len(names) != len(h.Tools) {
+		extra := make([]string, 0, len(h.Tools)-len(names))
+		for name := range h.Tools {
+			if _, ok := seen[name]; !ok {
+				extra = append(extra, name)
+			}
+		}
+		sort.Strings(extra)
+		names = append(names, extra...)
+	}
+	return names
+}
+
+var toolSectionRE = regexp.MustCompile(`(?m)^\s*\[\s*hooks\.([^\.\s\]]+)\.tools\.(?:(?:"([^"]+)")|(?:'([^']+)')|([^\]\s]+))\s*\]\s*$`)
+
+func parseHookToolOrder(data []byte) map[string][]string {
+	matches := toolSectionRE.FindAllSubmatch(data, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	order := map[string][]string{}
+	seen := map[string]map[string]struct{}{}
+	for _, match := range matches {
+		hook := string(match[1])
+		tool := ""
+		switch {
+		case len(match[2]) > 0:
+			tool = string(match[2])
+		case len(match[3]) > 0:
+			tool = string(match[3])
+		case len(match[4]) > 0:
+			tool = string(match[4])
+		default:
+			continue
+		}
+		if seen[hook] == nil {
+			seen[hook] = map[string]struct{}{}
+		}
+		if _, ok := seen[hook][tool]; ok {
+			continue
+		}
+		seen[hook][tool] = struct{}{}
+		order[hook] = append(order[hook], tool)
+	}
+	return order
+}
+
+func loadConfigFromBytes(data []byte) (*Config, error) {
+	var cfg Config
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	if cfg.Hooks == nil {
+		cfg.Hooks = map[string]HookConfig{}
+	}
+
+	for hookName, toolNames := range parseHookToolOrder(data) {
+		hook, ok := cfg.Hooks[hookName]
+		if !ok {
+			continue
+		}
+		hook.toolOrder = toolNames
+		cfg.Hooks[hookName] = hook
+	}
+
+	return &cfg, nil
+}
+
 func InitConfig(force bool, preset string) error {
 	return InitConfigWithOptions(force, false, preset)
 }
@@ -161,14 +250,11 @@ func LoadConfigFromPath(p string) (*Config, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	var cfg Config
-	if err := toml.Unmarshal(data, &cfg); err != nil {
+	cfg, err := loadConfigFromBytes(data)
+	if err != nil {
 		return nil, "", fmt.Errorf("invalid config at %s: %w", p, err)
 	}
-	if cfg.Hooks == nil {
-		cfg.Hooks = map[string]HookConfig{}
-	}
-	return &cfg, p, nil
+	return cfg, p, nil
 }
 
 func LoadConfig(repoRoot string) (*Config, string, error) {
@@ -191,20 +277,16 @@ func LoadConfig(repoRoot string) (*Config, string, error) {
 			return nil, "", err
 		}
 
-		var cfg Config
-		if err := toml.Unmarshal(data, &cfg); err != nil {
+		cfg, err := loadConfigFromBytes(data)
+		if err != nil {
 			return nil, "", fmt.Errorf("invalid config at %s: %w", p, err)
 		}
 
-		if cfg.Hooks == nil {
-			cfg.Hooks = map[string]HookConfig{}
-		}
-
 		if global, err := loadGlobalConfig(); err == nil && global != nil {
-			mergeGlobalConfig(global, &cfg)
+			mergeGlobalConfig(global, cfg)
 		}
 
-		return &cfg, p, nil
+		return cfg, p, nil
 	}
 
 	return nil, "", fmt.Errorf("no config found; run 'forge init' to create forge.toml")
@@ -233,15 +315,12 @@ func loadGlobalConfig() (*Config, error) {
 		}
 		return nil, err
 	}
-	var cfg Config
-	if err := toml.Unmarshal(data, &cfg); err != nil {
+	cfg, err := loadConfigFromBytes(data)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: invalid global config at %s: %v\n", p, err)
 		return nil, nil
 	}
-	if cfg.Hooks == nil {
-		cfg.Hooks = map[string]HookConfig{}
-	}
-	return &cfg, nil
+	return cfg, nil
 }
 
 func mergeGlobalConfig(global, repo *Config) {
@@ -264,6 +343,23 @@ func mergeGlobalConfig(global, repo *Config) {
 		for toolName, globalTool := range globalHook.Tools {
 			if _, ok := repoHook.Tools[toolName]; !ok {
 				repoHook.Tools[toolName] = globalTool
+			}
+		}
+
+		if len(globalHook.toolOrder) > 0 {
+			if len(repoHook.toolOrder) == 0 {
+				repoHook.toolOrder = append([]string(nil), globalHook.toolOrder...)
+			} else {
+				seen := map[string]struct{}{}
+				for _, name := range repoHook.toolOrder {
+					seen[name] = struct{}{}
+				}
+				for _, name := range globalHook.toolOrder {
+					if _, ok := seen[name]; !ok {
+						repoHook.toolOrder = append(repoHook.toolOrder, name)
+						seen[name] = struct{}{}
+					}
+				}
 			}
 		}
 
