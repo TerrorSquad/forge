@@ -37,12 +37,14 @@ extensions = [".php"]
 
 ## Execution order
 
-Tools run in the **alphabetical order of their keys**. To force a specific order, prefix keys:
+Tools run in the order they are declared in `forge.toml`.
 
 ```toml
-[hooks.pre-commit.tools.01_gofmt]
-[hooks.pre-commit.tools.02_govet]
-[hooks.pre-commit.tools.03_golangci]
+[hooks.pre-commit.tools.gofmt]
+command = "gofmt"
+
+[hooks.pre-commit.tools.golangci]
+command = "golangci-lint"
 ```
 
 ## Staged file filtering

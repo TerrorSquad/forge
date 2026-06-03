@@ -99,7 +99,7 @@ conventional_commits = true
 | `command` | string | Binary to run |
 | `args` | []string | Arguments (files appended unless `pass_files = false`) |
 | `type` | string | `system`, `node`, `php` — affects binary resolution |
-| `backend` | string | `host` or `ddev` (overrides global default) |
+| `backend` | string | `host`, `ddev`, or a Docker container name (overrides global default) |
 | `extensions` | []string | Only run on files with these extensions |
 | `include_patterns` | []string | Glob allowlist |
 | `exclude_patterns` | []string | Glob blocklist |
@@ -125,7 +125,7 @@ require_ticket       = false   # fail if branch has no ticket
 default_backend = "ddev"   # route all tools through `ddev exec`
 ```
 
-Or per tool: `backend = "ddev"`. Auto-detected when `.ddev/config.yaml` exists and the DDEV container is running (checked via `docker inspect`).
+Or per tool: `backend = "ddev"` or a Docker container name like `backend = "my-app-web"`. `ddev` is auto-detected when `.ddev/config.yaml` exists and the DDEV container is running (checked via `docker inspect`).
 
 ### Monorepo workspace mode
 
@@ -201,6 +201,9 @@ forge doctor
 After `forge install`, git `core.hooksPath` is set to `.forge/hooks`.
 Git automatically executes hook shims there on commit/push.
 
+If the repo has `.forge` committed, users still need to run `forge install` after cloning so local git config is updated.
+If `.forge` is missing, `forge install` creates it and writes the hook shims.
+
 ## Commands
 
 ```text
@@ -216,7 +219,7 @@ forge doctor
 - `pre-commit`
   - reads staged files (`git diff --cached --name-only --diff-filter=ACMR`)
   - filters files by configured extensions/patterns
-  - runs tools in alphabetical order
+  - runs tools in the order they are declared in `forge.toml`
   - re-stages files for tools with `restage = true`
 - `commit-msg`
   - validates conventional commit subject (if enabled)

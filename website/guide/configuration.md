@@ -22,6 +22,10 @@ enabled = true
 conventional_commits = true
 ```
 
+## Tool order
+
+Tool sections are executed in the order they are declared in `forge.toml`. There is no separate `order` field — the declaration order of `[hooks.<hook>.tools.<name>]` blocks determines execution order.
+
 ## Tool fields
 
 | Field | Type | Default | Description |
@@ -29,7 +33,7 @@ conventional_commits = true
 | `command` | string | — | Binary to run |
 | `args` | `[]string` | `[]` | Arguments (file paths appended unless `pass_files = false`) |
 | `type` | string | `system` | `system`, `node`, or `php` — affects binary resolution |
-| `backend` | string | global default | `host` or `ddev` — overrides global `[execution] default_backend` |
+| `backend` | string | global default | `host`, `ddev`, or a Docker container name — overrides global `[execution] default_backend` |
 | `extensions` | `[]string` | all | Only run on files with these extensions |
 | `include_patterns` | `[]string` | all | Glob allowlist |
 | `exclude_patterns` | `[]string` | none | Glob blocklist |

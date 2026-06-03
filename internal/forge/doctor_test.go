@@ -1,6 +1,10 @@
 package forge
 
 import (
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -19,6 +23,52 @@ func TestDoctorWithOptions_NoGitRepo(t *testing.T) {
 		}
 	}()
 	_ = DoctorWithOptions(DoctorOptions{})
+}
+
+func TestDoctorReportsConfigValidationIssues(t *testing.T) {
+	dir := t.TempDir()
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git init failed: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "forge.toml"), []byte(`
+[hooks.pre-commit]
+
+[hooks.pre-commit.tools.gofmt]
+command = "gofmt"
+unknown_field = true
+`), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	orig, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(orig)
+	}()
+
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	os.Stdout = w
+
+	err = DoctorWithOptions(DoctorOptions{})
+	w.Close()
+	os.Stdout = oldStdout
+
+	out, _ := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("DoctorWithOptions returned error: %v", err)
+	}
+	if !strings.Contains(string(out), "config: invalid") {
+		t.Errorf("expected invalid config message, got %q", string(out))
+	}
 }
 
 func TestDoctorOptions_StructFields(t *testing.T) {

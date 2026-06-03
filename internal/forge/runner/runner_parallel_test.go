@@ -109,3 +109,31 @@ func TestBuildDependencyLevels_Cycle(t *testing.T) {
 		t.Error("expected at least 1 level even with cycle")
 	}
 }
+
+func TestRunToolWave_SkipsPreCommitToolWithNoMatchingFiles(t *testing.T) {
+	result := runToolWave(
+		"/does/not/matter",
+		"pre-commit",
+		[]string{"vue-tsc"},
+		map[string]config.ToolConfig{
+			"vue-tsc": {
+				Command:    "echo",
+				Type:       "system",
+				Extensions: []string{".ts", ".tsx", ".vue"},
+			},
+		},
+		[]string{"package.json"},
+		config.ExecutionConfig{},
+		false,
+		false,
+		map[string]struct{}{},
+		toolCache{},
+	)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	if result[0].result.Status != "skip" {
+		t.Fatalf("expected skip status, got %q", result[0].result.Status)
+	}
+}

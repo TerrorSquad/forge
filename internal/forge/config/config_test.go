@@ -87,6 +87,24 @@ func TestLoadConfig_InvalidTOML(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_RejectsUnknownFields(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "forge.toml"), `
+[hooks.pre-commit]
+
+enabled = true
+
+[hooks.pre-commit.tools.gofmt]
+command = "gofmt"
+unknown_field = true
+`)
+
+	_, _, err := LoadConfig(dir)
+	if err == nil {
+		t.Fatal("expected error for unknown field, got nil")
+	}
+}
+
 func TestLoadConfig_EnvOverride(t *testing.T) {
 	dir := t.TempDir()
 	custom := filepath.Join(dir, "custom.toml")
@@ -166,6 +184,34 @@ pass_files = false
 	tool := cfg.Hooks["pre-commit"].Tools["govet"]
 	if tool.PassFilesEnabled() {
 		t.Error("expected pass_files = false to be respected")
+	}
+}
+
+func TestLoadConfig_PreservesToolDeclarationOrder(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "forge.toml"), `
+[hooks.pre-commit.tools.gofmt]
+command = "gofmt"
+
+[hooks.pre-commit.tools.golangci]
+command = "golangci-lint run"
+
+[hooks.pre-commit.tools.eslint]
+command = "eslint"
+`)
+	cfg, _, err := LoadConfig(dir)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	toolNames := cfg.Hooks["pre-commit"].OrderedToolNames()
+	want := []string{"gofmt", "golangci", "eslint"}
+	if len(toolNames) != len(want) {
+		t.Fatalf("expected %d tools, got %d", len(want), len(toolNames))
+	}
+	for i := range want {
+		if toolNames[i] != want[i] {
+			t.Errorf("tool[%d] = %q, want %q", i, toolNames[i], want[i])
+		}
 	}
 }
 

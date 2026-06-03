@@ -282,6 +282,32 @@ func TestIsSequencerOperation_DetectsCherryPick(t *testing.T) {
 	}
 }
 
+func TestIsSequencerOperation_DetectsRebase(t *testing.T) {
+	dir := initRepo(t)
+	writeFile(t, filepath.Join(dir, ".git", "REBASE_HEAD"), "abc123")
+
+	active, err := IsSequencerOperation(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !active {
+		t.Error("expected rebase operation to be detected")
+	}
+}
+
+func TestIsSequencerOperation_DetectsRevert(t *testing.T) {
+	dir := initRepo(t)
+	writeFile(t, filepath.Join(dir, ".git", "REVERT_HEAD"), "abc123")
+
+	active, err := IsSequencerOperation(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !active {
+		t.Error("expected revert operation to be detected")
+	}
+}
+
 // ---------- HasUnstagedChanges ----------
 
 func TestHasUnstagedChanges_CleanRepo(t *testing.T) {

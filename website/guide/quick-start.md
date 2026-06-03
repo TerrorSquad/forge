@@ -25,6 +25,7 @@ forge install
 ```
 
 forge writes thin shell scripts to `.forge/hooks/` and sets git's `core.hooksPath` to that directory.
+If you cloned a repo that already commits `.forge`, you still need to run `forge install` once to set the local Git hook path.
 
 ## 4. Verify
 

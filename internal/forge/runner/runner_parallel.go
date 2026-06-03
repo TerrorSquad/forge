@@ -83,7 +83,7 @@ func runHookCfgParallel(root, hookName string, hookCfg config.HookConfig, exec c
 	allFiles := opts.AllFiles
 	noCache := opts.NoCache
 	checkMode := opts.CheckMode
-	toolNames := applyToolFilter(config.SortedToolNames(hookCfg.Tools), hookCfg.Tools, opts)
+	toolNames := applyToolFilter(hookCfg.OrderedToolNames(), hookCfg.Tools, opts)
 	if len(toolNames) == 0 {
 		fmt.Fprintf(ui.UI, "%s\n", ui.Dim("no tools configured for "+hookName))
 		return nil
@@ -106,7 +106,7 @@ func runHookCfgParallel(root, hookName string, hookCfg config.HookConfig, exec c
 			break
 		}
 
-		waveResults := runToolWave(root, levelNames, hookCfg.Tools, files, exec, noCache, checkMode, allowedGroups, tc)
+		waveResults := runToolWave(root, hookName, levelNames, hookCfg.Tools, files, exec, noCache, checkMode, allowedGroups, tc)
 
 		for _, pr := range waveResults {
 			ui.PrintToolResult(pr.result)
@@ -162,7 +162,7 @@ func runHookCfgParallel(root, hookName string, hookCfg config.HookConfig, exec c
 	return nil
 }
 
-func runToolWave(root string, names []string, tools map[string]config.ToolConfig, files []string, exec config.ExecutionConfig, noCache, checkMode bool, allowedGroups map[string]struct{}, tc toolCache) []parallelToolResult {
+func runToolWave(root, hookName string, names []string, tools map[string]config.ToolConfig, files []string, exec config.ExecutionConfig, noCache, checkMode bool, allowedGroups map[string]struct{}, tc toolCache) []parallelToolResult {
 	results := make([]parallelToolResult, len(names))
 	var wg sync.WaitGroup
 
@@ -200,8 +200,13 @@ func runToolWave(root string, names []string, tools map[string]config.ToolConfig
 			filesToRun := filterFiles(files, tool)
 			pr.filesToRun = filesToRun
 
-			b := backend.ResolveBackend(root, tool, exec.DefaultBackend)
+			if hookName == "pre-commit" && len(filesToRun) == 0 {
+				pr.result = ui.ToolResult{Name: toolName, Status: "skip"}
+				results[idx] = pr
+				return
+			}
 
+			b := backend.ResolveBackend(root, tool, exec.DefaultBackend)
 			resolvedCmd := backend.ResolveCommandForBackend(root, tool, b)
 			if !backend.ToolBinaryAvailable(root, resolvedCmd, b) {
 				pr.result = ui.ToolResult{Name: toolName, Status: "skip"}
