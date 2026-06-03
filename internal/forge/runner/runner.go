@@ -55,6 +55,13 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 		return config.ErrHookSkipped
 	}
 
+	if sequencer, err := git.IsSequencerOperation(repoRoot); err != nil {
+		return err
+	} else if sequencer {
+		fmt.Fprintf(ui.UI, "%s\n", ui.Yellow("~ hook execution skipped during Git merge/rebase/cherry-pick/revert operation"))
+		return config.ErrHookSkipped
+	}
+
 	cfg, configPath, err := config.LoadConfig(repoRoot)
 	if err != nil {
 		return err

@@ -2,6 +2,7 @@ package runner
 
 import (
 	"bytes"
+	"errors"
 	"github.com/TerrorSquad/forge/internal/forge/config"
 	"github.com/TerrorSquad/forge/internal/forge/ui"
 	"os"
@@ -72,6 +73,25 @@ enabled = true
 	}
 	if !strings.Contains(err.Error(), "pre-commit") {
 		t.Errorf("expected error to mention pre-commit, got: %v", err)
+	}
+}
+
+func TestRunHookWithOptions_SkipsDuringGitSequencerOperation(t *testing.T) {
+	dir := initBareGitRepo(t)
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	writeFile(t, filepath.Join(dir, ".git", "MERGE_HEAD"), "abc123")
+
+	err := RunHookWithOptions("pre-commit", "", RunOptions{})
+	if err == nil {
+		t.Fatal("expected hook skip error")
+	}
+	if !errors.Is(err, config.ErrHookSkipped) {
+		t.Fatalf("expected ErrHookSkipped, got %v", err)
 	}
 }
 
