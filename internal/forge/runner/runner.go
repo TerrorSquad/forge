@@ -199,7 +199,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg config.HookConfig, exec
 		}
 
 		filesToRun := filterFiles(files, tool)
-		if hookName == "pre-commit" && tool.PassFilesEnabled() && len(filesToRun) == 0 {
+		if hookName == "pre-commit" && len(filesToRun) == 0 {
 			r := ui.ToolResult{Name: name, Status: "skip"}
 			ui.PrintToolResult(r)
 			results = append(results, r)

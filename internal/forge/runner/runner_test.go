@@ -1,7 +1,9 @@
 package runner
 
 import (
+	"bytes"
 	"github.com/TerrorSquad/forge/internal/forge/config"
+	"github.com/TerrorSquad/forge/internal/forge/ui"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,6 +72,34 @@ enabled = true
 	}
 	if !strings.Contains(err.Error(), "pre-commit") {
 		t.Errorf("expected error to mention pre-commit, got: %v", err)
+	}
+}
+
+func TestRunHookCfg_PreCommitSkipsPassFilesFalseWhenNoMatchingStagedFiles(t *testing.T) {
+	dir := initBareGitRepo(t)
+
+	cfg := config.HookConfig{
+		Enabled: boolPtr(true),
+		Tools: map[string]config.ToolConfig{
+			"vue-tsc": {
+				Command:    "echo",
+				Type:       "system",
+				Extensions: []string{".ts", ".tsx", ".vue"},
+				PassFiles:  boolPtr(false),
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	ui.UI = &buf
+	t.Cleanup(func() { ui.UI = os.Stdout })
+
+	err := runHookCfg(dir, "pre-commit", "", cfg, config.ExecutionConfig{}, []string{"package.json"}, RunOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(buf.String(), "skip") {
+		t.Fatalf("expected tool to be skipped when no staged files match extensions, got output: %q", buf.String())
 	}
 }
 
