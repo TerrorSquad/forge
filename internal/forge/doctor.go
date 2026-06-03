@@ -1,6 +1,7 @@
 package forge
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -44,15 +45,31 @@ func DoctorWithOptions(opts DoctorOptions) error {
 
 	cfg, cfgPath, cfgErr := config.LoadConfig(repoRoot)
 	if cfgErr != nil {
-		fmt.Printf("config: missing (%v)\n", cfgErr)
-		if opts.Fix && !opts.DryRun {
-			fmt.Printf("  → run 'forge init' to create forge.toml\n")
-		} else if opts.Fix && opts.DryRun {
-			fmt.Printf("  [dry-run] would suggest: forge init\n")
+		if errors.Is(cfgErr, os.ErrNotExist) {
+			fmt.Printf("config: missing (%v)\n", cfgErr)
+			if opts.Fix && !opts.DryRun {
+				fmt.Printf("  → run 'forge init' to create forge.toml\n")
+			} else if opts.Fix && opts.DryRun {
+				fmt.Printf("  [dry-run] would suggest: forge init\n")
+			}
+		} else {
+			fmt.Printf("config: invalid (%v)\n", cfgErr)
+			if opts.Fix && !opts.DryRun {
+				fmt.Printf("  → run 'forge validate' to diagnose config issues\n")
+			} else if opts.Fix && opts.DryRun {
+				fmt.Printf("  [dry-run] would suggest: forge validate\n")
+			}
 		}
 	} else {
 		fmt.Printf("config: %s\n", cfgPath)
 		fmt.Printf("configured hooks: %s\n", strings.Join(sortedHookNames(cfg.Hooks), ", "))
+		issues := ValidateConfig(cfg)
+		if len(issues) > 0 {
+			fmt.Println("config validation issues:")
+			PrintValidationIssues(issues)
+		} else {
+			fmt.Println("config: valid")
+		}
 	}
 
 	// Check core.hooksPath
