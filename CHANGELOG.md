@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on the Keep a Changelog principles and is intended to work with automated release tooling.
 
+## [1.1.1](https://github.com/TerrorSquad/forge/compare/v1.1.0...v1.1.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* skip hooks during git merge/rebase/cherry-pick/revert operations ([0fa2852](https://github.com/TerrorSquad/forge/commit/0fa28527e48dbe95a2c6115883734c9b9c491789))
+* skip pre-commit tools when no staged files match extensions even with pass_files=false ([874fd52](https://github.com/TerrorSquad/forge/commit/874fd52f374d4def2a2173dee1095d4651d1e6de))
+
 ## [1.1.0](https://github.com/TerrorSquad/forge/compare/v1.0.11...v1.1.0) (2026-05-27)
 
 
