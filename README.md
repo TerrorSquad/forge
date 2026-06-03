@@ -201,6 +201,9 @@ forge doctor
 After `forge install`, git `core.hooksPath` is set to `.forge/hooks`.
 Git automatically executes hook shims there on commit/push.
 
+If the repo has `.forge` committed, users still need to run `forge install` after cloning so local git config is updated.
+If `.forge` is missing, `forge install` creates it and writes the hook shims.
+
 ## Commands
 
 ```text

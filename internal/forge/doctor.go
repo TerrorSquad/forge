@@ -60,6 +60,9 @@ func DoctorWithOptions(opts DoctorOptions) error {
 	wantHooksPath := ".forge/hooks"
 	if hooksPath == "" {
 		fmt.Println("core.hooksPath: not set")
+		if cfgErr == nil {
+			fmt.Println("  → run 'forge install' to initialize hook shims and set core.hooksPath")
+		}
 		if opts.Fix {
 			if opts.DryRun {
 				fmt.Printf("  [dry-run] would set core.hooksPath = %s\n", wantHooksPath)
