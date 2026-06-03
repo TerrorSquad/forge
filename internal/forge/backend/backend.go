@@ -78,6 +78,10 @@ func (b *HostBackend) BinaryExists(dir, binary string) bool {
 // This is faster than `ddev exec` because it skips the DDEV CLI overhead.
 type DdevBackend struct{}
 
+type DockerBackend struct {
+	container string
+}
+
 func (b *DdevBackend) Name() string { return "ddev" }
 
 func (b *DdevBackend) Exec(dir string, cmd []string) error {
@@ -127,6 +131,40 @@ func (b *DdevBackend) BinaryExists(dir, binary string) bool {
 	return system[binary]
 }
 
+func (b *DockerBackend) Name() string { return b.container }
+
+func (b *DockerBackend) Exec(dir string, cmd []string) error {
+	return b.ExecWithWriter(dir, cmd, nil)
+}
+
+func (b *DockerBackend) ExecWithWriter(dir string, cmd []string, w io.Writer) error {
+	return b.ExecWithContext(context.Background(), dir, cmd, nil, w)
+}
+
+func (b *DockerBackend) ExecWithContext(ctx context.Context, dir string, cmd []string, env map[string]string, w io.Writer) error {
+	dockerArgs := []string{"docker", "exec", "-i"}
+	for k, v := range env {
+		dockerArgs = append(dockerArgs, "-e", k+"="+v)
+	}
+	dockerArgs = append(dockerArgs, b.container)
+	dockerArgs = append(dockerArgs, cmd...)
+	c := exec.CommandContext(ctx, dockerArgs[0], dockerArgs[1:]...)
+	c.Dir = dir
+	if w != nil {
+		c.Stdout = w
+		c.Stderr = w
+	} else {
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+	}
+	c.Stdin = os.Stdin
+	return c.Run()
+}
+
+func (b *DockerBackend) BinaryExists(dir, binary string) bool {
+	return true
+}
+
 // ResolveBackend returns the appropriate backend for a tool in the given repo root.
 // Priority: per-tool override → global config default → DDEV auto-detect → host
 func ResolveBackend(repoRoot string, tool config.ToolConfig, globalDefault string) Backend {
@@ -140,13 +178,14 @@ func ResolveBackend(repoRoot string, tool config.ToolConfig, globalDefault strin
 		return &DdevBackend{}
 	case "host":
 		return &HostBackend{}
+	case "":
+		if isDdevRunning(repoRoot) {
+			return &DdevBackend{}
+		}
+		return &HostBackend{}
+	default:
+		return &DockerBackend{container: name}
 	}
-
-	if isDdevRunning(repoRoot) {
-		return &DdevBackend{}
-	}
-
-	return &HostBackend{}
 }
 
 // isDdevRunning returns true if the DDEV web container for repoRoot is running.
@@ -156,6 +195,10 @@ func isDdevRunning(repoRoot string) bool {
 	if err != nil {
 		return false
 	}
+	return isDockerContainerRunning(container)
+}
+
+func isDockerContainerRunning(container string) bool {
 	out, err := exec.Command("docker", "inspect", "--format", "{{.State.Running}}", container).Output()
 	if err != nil {
 		return false
@@ -225,6 +268,9 @@ func ToolBinaryAvailable(repoRoot, resolvedCmd string, backend Backend) bool {
 	if _, isDdev := backend.(*DdevBackend); isDdev {
 		return true
 	}
+	if _, isDocker := backend.(*DockerBackend); isDocker {
+		return true
+	}
 	if filepath.IsAbs(resolvedCmd) {
 		_, err := os.Stat(resolvedCmd)
 		return err == nil
@@ -272,10 +318,12 @@ func CheckBackendAvailability(repoRoot string, cfg *config.Config) []BackendIssu
 		case "host", "":
 			// always available
 		default:
-			issues = append(issues, BackendIssue{
-				Backend: name,
-				Message: fmt.Sprintf("unknown backend %q", name),
-			})
+			if !isDockerContainerRunning(name) {
+				issues = append(issues, BackendIssue{
+					Backend: name,
+					Message: fmt.Sprintf("docker container %q is not running or inaccessible", name),
+				})
+			}
 		}
 	}
 	return issues

@@ -118,6 +118,23 @@ func TestValidateConfig_BadBranchPattern(t *testing.T) {
 	}
 }
 
+// TestValidateConfig_CustomBackendAllowsDockerContainerNames.
+func TestValidateConfig_CustomBackendAllowsDockerContainerNames(t *testing.T) {
+	cfg := &config.Config{
+		Hooks: map[string]config.HookConfig{
+			"pre-commit": {
+				Tools: map[string]config.ToolConfig{
+					"tool": {Command: "cmd", Backend: "my-app-web"},
+				},
+			},
+		},
+	}
+	issues := ValidateConfig(cfg)
+	if len(issues) != 0 {
+		t.Errorf("expected no issues for custom container backend, got %v", issues)
+	}
+}
+
 // TestDetectDependsCycles_NoCycle returns empty for a DAG.
 func TestDetectDependsCycles_NoCycle(t *testing.T) {
 	tools := map[string]config.ToolConfig{

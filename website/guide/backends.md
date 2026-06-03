@@ -49,6 +49,13 @@ backend = "host"   # always run on host even if default is ddev
 |-------|-----------|
 | `host` | Run the command directly on the host machine (default) |
 | `ddev` | Run via `docker exec` inside the DDEV web container |
+| `<container-name>` | Run via `docker exec` into the named container |
+
+If `backend` is neither `host` nor `ddev`, forge treats it as a Docker container name and runs:
+
+```sh
+docker exec -i <container-name> <command>
+```
 
 ## Troubleshooting
 

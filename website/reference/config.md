@@ -6,7 +6,7 @@ Full schema reference for `forge.toml`.
 
 ```toml
 [execution]
-default_backend = "host"   # "host" | "ddev"
+default_backend = "host"   # "host" | "ddev" | custom Docker container name
 ```
 
 | Key | Type | Default | Description |
@@ -66,7 +66,7 @@ group            = ""
 | `command` | string | **required** | Binary name or path |
 | `args` | `[]string` | `[]` | Extra arguments |
 | `type` | string | `"system"` | `"system"` \| `"node"` \| `"php"` — affects binary resolution |
-| `backend` | string | global default | `"host"` \| `"ddev"` |
+| `backend` | string | global default | `"host"` \| `"ddev"` \| `<container-name>` |
 | `extensions` | `[]string` | all | Run only on files with these extensions |
 | `include_patterns` | `[]string` | all | Glob allowlist for file paths |
 | `exclude_patterns` | `[]string` | none | Glob blocklist for file paths |

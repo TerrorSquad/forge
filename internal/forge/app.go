@@ -1,6 +1,7 @@
 package forge
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -97,7 +98,7 @@ func Run(args []string) int {
 	case "cache":
 		return cacheCommand(args[1:])
 	case "list":
-		return listCommand()
+		return listCommand(args[1:])
 	case "ci":
 		return ciCommand()
 	case "validate":
@@ -130,6 +131,8 @@ func runCommand(args []string) int {
 	tool := fs.String("tool", "", "only run these tools, comma-separated (e.g. phpstan,psalm)")
 	group := fs.String("group", "", "only run tools in this group, comma-separated")
 	skipTool := fs.String("skip-tool", "", "skip these tools by name, comma-separated")
+	skipGroup := fs.String("skip-group", "", "skip these tool groups by name, comma-separated")
+	verbose := fs.Bool("verbose", false, "show verbose tool selection and command details")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
 	}
@@ -148,6 +151,8 @@ func runCommand(args []string) int {
 		OnlyTools:  splitCSV(*tool),
 		OnlyGroups: splitCSV(*group),
 		SkipTools:  splitCSV(*skipTool),
+		SkipGroups: splitCSV(*skipGroup),
+		Verbose:    *verbose,
 	}
 	// Capture second positional arg as source (used by prepare-commit-msg)
 	if extra := fs.Args(); len(extra) > 1 {
@@ -218,8 +223,9 @@ Usage:
   forge uninstall
   forge run <hook> [--edit FILE] [--all-files] [--check] [--no-cache]
                      [--tool NAMES] [--group NAMES] [--skip-tool NAMES]
+                     [--skip-group NAMES] [--verbose]
   forge validate
-  forge list
+  forge list [--hook HOOK] [--json]
   forge ci
   forge migrate [--from FILE] [--to FILE]
   forge doctor [--fix] [--dry-run]
@@ -231,6 +237,8 @@ Run flags:
   --tool phpstan,psalm       only run the named tools
   --group analysis           only run tools in this group
   --skip-tool psalm          run everything except the named tools
+  --skip-group format        skip tools by group name
+  --verbose                  show verbose run diagnostics
 
 Env vars:
   SKIP_<TOOL>=1              skip a specific tool (e.g. SKIP_PHPSTAN=1)
@@ -246,8 +254,11 @@ Examples:
   forge run pre-commit --tool phpstan
   forge run pre-commit --group analysis --all-files
   forge run pre-commit --skip-tool psalm
+  forge run pre-commit --skip-group format
+  forge run pre-commit --verbose
   forge run pre-commit --check --all-files
   forge list
+  forge list --hook pre-commit --json
   forge ci
   forge cache clear`)
 }
@@ -327,7 +338,14 @@ func cacheCommand(args []string) int {
 }
 
 // listCommand prints all configured hooks and their tools.
-func listCommand() int {
+func listCommand(args []string) int {
+	fs := flag.NewFlagSet("list", flag.ContinueOnError)
+	hook := fs.String("hook", "", "only show the named hook")
+	jsonOut := fs.Bool("json", false, "print output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
 	repoRoot, err := git.DetectRepoRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "list failed: %v\n", err)
@@ -341,8 +359,17 @@ func listCommand() int {
 	fmt.Fprintf(ui.UI, "%s\n\n", ui.Dim("config: "+configPath))
 
 	if len(cfg.Hooks) == 0 {
+		if *jsonOut {
+			out, _ := json.MarshalIndent(map[string]any{"hooks": map[string]any{}}, "", "  ")
+			fmt.Fprintln(ui.UI, string(out))
+			return 0
+		}
 		fmt.Fprintf(ui.UI, "%s\n", ui.Dim("no hooks configured"))
 		return 0
+	}
+
+	if *jsonOut {
+		return listCommandJSON(cfg, *hook)
 	}
 
 	hookNames := make([]string, 0, len(cfg.Hooks))
@@ -351,8 +378,15 @@ func listCommand() int {
 	}
 	sort.Strings(hookNames)
 
+	if *hook != "" {
+		hookNames = []string{*hook}
+	}
+
 	for _, hookName := range hookNames {
-		hookCfg := cfg.Hooks[hookName]
+		hookCfg, ok := cfg.Hooks[hookName]
+		if !ok {
+			continue
+		}
 		enabled := hookCfg.IsEnabled()
 		statusIcon := ui.Green("✓")
 		if !enabled {
@@ -399,6 +433,51 @@ func listCommand() int {
 		}
 		fmt.Fprintln(ui.UI)
 	}
+	return 0
+}
+
+func listCommandJSON(cfg *config.Config, hook string) int {
+	result := map[string]any{"hooks": map[string]any{}}
+	hooks := result["hooks"].(map[string]any)
+
+	hookNames := make([]string, 0, len(cfg.Hooks))
+	for name := range cfg.Hooks {
+		hookNames = append(hookNames, name)
+	}
+	sort.Strings(hookNames)
+
+	for _, hookName := range hookNames {
+		if hook != "" && hookName != hook {
+			continue
+		}
+		hookCfg := cfg.Hooks[hookName]
+		toolNames := hookCfg.OrderedToolNames()
+		tools := make([]any, 0, len(toolNames))
+		for _, toolName := range toolNames {
+			tool := hookCfg.Tools[toolName]
+			effectiveBackend := tool.Backend
+			if effectiveBackend == "" {
+				effectiveBackend = cfg.Execution.DefaultBackend
+			}
+			if effectiveBackend == "" {
+				effectiveBackend = "auto"
+			}
+			tools = append(tools, map[string]any{
+				"name":    toolName,
+				"command": tool.Command,
+				"backend": effectiveBackend,
+				"group":   tool.Group,
+				"timeout": tool.Timeout,
+			})
+		}
+		hooks[hookName] = map[string]any{
+			"enabled": hookCfg.IsEnabled(),
+			"tools":   tools,
+		}
+	}
+
+	out, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Fprintln(ui.UI, string(out))
 	return 0
 }
 

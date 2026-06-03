@@ -291,9 +291,9 @@ func TestApplyToolFilter_OnlyGroups(t *testing.T) {
 // TestApplyToolFilter_SkipTools checks that --skip-tool excludes named tools.
 func TestApplyToolFilter_SkipTools(t *testing.T) {
 	tools := map[string]config.ToolConfig{
-		"ecs":     {},
-		"phpstan": {},
-		"psalm":   {},
+		"ecs":     {Group: "format"},
+		"phpstan": {Group: "analysis"},
+		"psalm":   {Group: "analysis"},
 	}
 	names := []string{"ecs", "phpstan", "psalm"}
 	opts := RunOptions{SkipTools: []string{"psalm"}}
@@ -305,6 +305,25 @@ func TestApplyToolFilter_SkipTools(t *testing.T) {
 	}
 	if len(got) != 2 {
 		t.Errorf("expected 2 tools, got %v", got)
+	}
+}
+
+func TestApplyToolFilter_SkipGroups(t *testing.T) {
+	tools := map[string]config.ToolConfig{
+		"ecs":     {Group: "format"},
+		"phpstan": {Group: "analysis"},
+		"psalm":   {Group: "analysis"},
+	}
+	names := []string{"ecs", "phpstan", "psalm"}
+	opts := RunOptions{SkipGroups: []string{"analysis"}}
+	got := applyToolFilter(names, tools, opts)
+	for _, n := range got {
+		if n == "phpstan" || n == "psalm" {
+			t.Errorf("tools in analysis group should have been skipped, got %s", n)
+		}
+	}
+	if len(got) != 1 || got[0] != "ecs" {
+		t.Errorf("expected [ecs], got %v", got)
 	}
 }
 

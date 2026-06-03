@@ -32,6 +32,8 @@ type RunOptions struct {
 	OnlyTools  []string
 	OnlyGroups []string
 	SkipTools  []string
+	SkipGroups []string
+	Verbose    bool
 }
 
 func RunHook(hookName string, editFile string) error {
@@ -169,6 +171,9 @@ func runHookCfg(root, hookName, editFile string, hookCfg config.HookConfig, exec
 	}
 
 	ui.PrintHookHeaderCI(hookName)
+	if opts.Verbose {
+		printVerboseToolSelection(root, hookCfg, exec, toolNames)
+	}
 
 	allowedGroups := parseAllowedGroups()
 	var results []ui.ToolResult
@@ -664,19 +669,23 @@ func shouldSkipGroup(group string) bool {
 }
 
 func applyToolFilter(toolNames []string, tools map[string]config.ToolConfig, opts RunOptions) []string {
-	if len(opts.OnlyTools) == 0 && len(opts.OnlyGroups) == 0 && len(opts.SkipTools) == 0 {
+	if len(opts.OnlyTools) == 0 && len(opts.OnlyGroups) == 0 && len(opts.SkipTools) == 0 && len(opts.SkipGroups) == 0 {
 		return toolNames
 	}
 	onlyToolSet := setOf(opts.OnlyTools)
 	onlyGroupSet := setOf(opts.OnlyGroups)
 	skipToolSet := setOf(opts.SkipTools)
+	skipGroupSet := setOf(opts.SkipGroups)
 
 	filtered := make([]string, 0, len(toolNames))
 	for _, name := range toolNames {
+		tool := tools[name]
 		if skipToolSet[name] {
 			continue
 		}
-		tool := tools[name]
+		if len(skipGroupSet) > 0 && skipGroupSet[strings.ToLower(tool.Group)] {
+			continue
+		}
 		if len(onlyToolSet) > 0 && !onlyToolSet[name] {
 			if !isDependencyOf(name, opts.OnlyTools, tools) {
 				continue
@@ -696,6 +705,21 @@ func setOf(items []string) map[string]bool {
 		m[strings.ToLower(v)] = true
 	}
 	return m
+}
+
+func printVerboseToolSelection(repoRoot string, hookCfg config.HookConfig, exec config.ExecutionConfig, toolNames []string) {
+	fmt.Fprintf(ui.UI, "%s\n", ui.Dim("verbose tool selection:"))
+	for _, name := range toolNames {
+		tool := hookCfg.Tools[name]
+		b := backend.ResolveBackend(repoRoot, tool, exec.DefaultBackend)
+		resolvedCmd := backend.ResolveCommandForBackend(repoRoot, tool, b)
+		formatted := fmt.Sprintf("%s %s %s", ui.Bold(name), ui.Dim("["+b.Name()+"]"), resolvedCmd)
+		if tool.Group != "" {
+			formatted += " " + ui.Dim("group:"+tool.Group)
+		}
+		fmt.Fprintf(ui.UI, "  %s\n", formatted)
+	}
+	fmt.Fprintln(ui.UI)
 }
 
 func isDependencyOf(name string, requestedTools []string, tools map[string]config.ToolConfig) bool {

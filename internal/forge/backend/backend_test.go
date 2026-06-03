@@ -243,6 +243,16 @@ func TestResolveBackend_ExplicitDdev(t *testing.T) {
 	}
 }
 
+func TestResolveBackend_ExplicitDockerContainer(t *testing.T) {
+	tool := config.ToolConfig{Backend: "my-app-web"}
+	b := ResolveBackend(t.TempDir(), tool, "")
+	if docker, ok := b.(*DockerBackend); !ok {
+		t.Errorf("expected DockerBackend, got %T", b)
+	} else if docker.container != "my-app-web" {
+		t.Errorf("expected container name %q, got %q", "my-app-web", docker.container)
+	}
+}
+
 func TestResolveBackend_GlobalDefault_Host(t *testing.T) {
 	tool := config.ToolConfig{}
 	b := ResolveBackend(t.TempDir(), tool, "host")

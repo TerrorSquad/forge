@@ -99,7 +99,7 @@ conventional_commits = true
 | `command` | string | Binary to run |
 | `args` | []string | Arguments (files appended unless `pass_files = false`) |
 | `type` | string | `system`, `node`, `php` — affects binary resolution |
-| `backend` | string | `host` or `ddev` (overrides global default) |
+| `backend` | string | `host`, `ddev`, or a Docker container name (overrides global default) |
 | `extensions` | []string | Only run on files with these extensions |
 | `include_patterns` | []string | Glob allowlist |
 | `exclude_patterns` | []string | Glob blocklist |
@@ -125,7 +125,7 @@ require_ticket       = false   # fail if branch has no ticket
 default_backend = "ddev"   # route all tools through `ddev exec`
 ```
 
-Or per tool: `backend = "ddev"`. Auto-detected when `.ddev/config.yaml` exists and the DDEV container is running (checked via `docker inspect`).
+Or per tool: `backend = "ddev"` or a Docker container name like `backend = "my-app-web"`. `ddev` is auto-detected when `.ddev/config.yaml` exists and the DDEV container is running (checked via `docker inspect`).
 
 ### Monorepo workspace mode
 

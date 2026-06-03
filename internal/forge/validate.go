@@ -88,20 +88,9 @@ func ValidateConfig(cfg *config.Config) []ValidationIssue {
 				}
 			}
 
-			// backend must be a known value when set.
-			if tool.Backend != "" {
-				switch strings.ToLower(tool.Backend) {
-				case "host", "ddev":
-					// valid
-				default:
-					issues = append(issues, ValidationIssue{
-						Level: IssueWarn, Hook: hookName, Tool: toolName,
-						Message: fmt.Sprintf("backend %q is not recognized; use \"host\" or \"ddev\"", tool.Backend),
-					})
-				}
-			}
+			// backend may be host, ddev, or a Docker container name.
+			// Any non-empty string is considered valid and is resolved at runtime.
 
-			// depends_on must reference tools that exist in the same hook.
 			for _, dep := range tool.DependsOn {
 				if _, ok := hookCfg.Tools[dep]; !ok {
 					issues = append(issues, ValidationIssue{
