@@ -22,6 +22,10 @@ enabled = true
 conventional_commits = true
 ```
 
+## Tool order
+
+Tool sections are executed in the order they are declared in `forge.toml`. There is no separate `order` field — the declaration order of `[hooks.<hook>.tools.<name>]` blocks determines execution order.
+
 ## Tool fields
 
 | Field | Type | Default | Description |

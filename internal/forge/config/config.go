@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -189,7 +190,8 @@ func parseHookToolOrder(data []byte) map[string][]string {
 
 func loadConfigFromBytes(data []byte) (*Config, error) {
 	var cfg Config
-	if err := toml.Unmarshal(data, &cfg); err != nil {
+	decoder := toml.NewDecoder(bytes.NewReader(data)).DisallowUnknownFields()
+	if err := decoder.Decode(&cfg); err != nil {
 		return nil, err
 	}
 	if cfg.Hooks == nil {

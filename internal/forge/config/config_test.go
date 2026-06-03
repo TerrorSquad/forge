@@ -87,6 +87,24 @@ func TestLoadConfig_InvalidTOML(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_RejectsUnknownFields(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "forge.toml"), `
+[hooks.pre-commit]
+
+enabled = true
+
+[hooks.pre-commit.tools.gofmt]
+command = "gofmt"
+unknown_field = true
+`)
+
+	_, _, err := LoadConfig(dir)
+	if err == nil {
+		t.Fatal("expected error for unknown field, got nil")
+	}
+}
+
 func TestLoadConfig_EnvOverride(t *testing.T) {
 	dir := t.TempDir()
 	custom := filepath.Join(dir, "custom.toml")

@@ -76,6 +76,8 @@ group            = ""
 | `on_failure` | string | `""` | Set to `"stop"` to abort remaining tools on error |
 | `group` | string | `""` | Used with `HOOKS_ONLY` to run a subset of tools |
 
+> Tool sections are executed in the order they appear in `forge.toml`. `forge validate` rejects unknown or unsupported fields.
+
 ---
 
 ## `[hooks.commit-msg.policy]`
