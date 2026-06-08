@@ -108,6 +108,15 @@ FORGE_PUSH_REMOTE="$1" FORGE_PUSH_URL="$2" \`
 	return fmt.Sprintf(`#!/usr/bin/env sh
 set -eu
 
+# TODO: Handle this more robustly - via forge.toml config or env var - instead of hardcoding the path to the mise shims. This is brittle and only works if mise is installed in the default location.
+
+# Load mise shims if they exist, so that if forge is installed via mise, the shims will correctly forward to the mise-installed version.
+
+if [ -d "$HOME/.local/share/mise/shims" ]; then
+	export PATH="$HOME/.local/share/mise/shims:$PATH"
+fi
+
+
 # Prefer system-installed binary; fall back to repo-local binary (dev workflow)
 if command -v %s >/dev/null 2>&1; then%s
   exec %s run %s "$@"
