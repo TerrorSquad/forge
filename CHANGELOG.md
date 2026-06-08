@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on the Keep a Changelog principles and is intended to work with automated release tooling.
 
+## [1.2.1](https://github.com/TerrorSquad/forge/compare/v1.2.0...v1.2.1) (2026-06-08)
+
+
+### Bug Fixes
+
+* load mise shims ([c578d1b](https://github.com/TerrorSquad/forge/commit/c578d1b49926980390aa8c3aaef353975973d8ea))
+* load mise shims ([dde9821](https://github.com/TerrorSquad/forge/commit/dde9821de93aebe46124fa403090363c41611794))
+
 ## [1.2.0](https://github.com/TerrorSquad/forge/compare/v1.1.1...v1.2.0) (2026-06-03)
 
 
