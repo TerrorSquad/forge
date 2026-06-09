@@ -111,6 +111,8 @@ require_ticket       = false
 | `conventional_commits` | bool | `false` | Enforce Conventional Commits prefix |
 | `append_ticket_footer` | bool | `false` | Append `Closes: TICKET` footer from branch name |
 | `require_ticket` | bool | `false` | Fail if branch has no ticket ID |
+| `ticket_pattern` | string | `([A-Z]+-[0-9]+)` | Regex with capture group matched against the branch name to extract a ticket ID. Default matches Jira/Linear style (e.g. `PRJ-123`). Use `(#[0-9]+)` for GitHub issues. |
+| `allowed_types` | array | *(default set)* | Custom list of allowed Conventional Commits types. Overrides the default set (`feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`). Only active when `conventional_commits = true`. |
 
 ---
 

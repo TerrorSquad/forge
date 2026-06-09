@@ -15,3 +15,11 @@ func writeFile(t *testing.T, path, content string) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 }
+
+// initRepoWithBranch creates a bare git repo on the given branch.
+func initRepoWithBranch(t *testing.T, branch string) string {
+	t.Helper()
+	dir := initBareGitRepo(t)
+	createBranchInRepoIfNotExists(t, dir, branch)
+	return dir
+}

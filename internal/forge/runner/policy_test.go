@@ -374,3 +374,105 @@ func TestApplyPrepareCommitMsgPolicy_NoTicketInBranch(t *testing.T) {
 		t.Errorf("file should be unchanged when no ticket in branch, got: %q", string(content))
 	}
 }
+
+// ---------- ticket_pattern ----------
+
+func TestApplyCommitMessagePolicy_CustomTicketPattern(t *testing.T) {
+	dir := initRepoWithBranch(t, "feature/#42-my-feature")
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "feat: add something\n")
+
+	policy := &config.CommitMessagePolicy{
+		AppendTicketFooter: true,
+		TicketPattern:      `(#[0-9]+)`,
+	}
+	if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	content, _ := os.ReadFile(msgFile)
+	if !strings.Contains(string(content), "#42") {
+		t.Errorf("expected #42 in footer, got: %q", string(content))
+	}
+}
+
+func TestApplyCommitMessagePolicy_CustomTicketPattern_NoMatch(t *testing.T) {
+	dir := initRepoWithBranch(t, "feature/no-issue-here")
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "feat: add something\n")
+
+	policy := &config.CommitMessagePolicy{
+		RequireTicket: true,
+		TicketPattern: `(#[0-9]+)`,
+	}
+	err := applyCommitMessagePolicy(dir, policy, msgFile)
+	if err == nil {
+		t.Error("expected error: no ticket matching custom pattern")
+	}
+}
+
+func TestApplyCommitMessagePolicy_InvalidTicketPatternFallsBackToDefault(t *testing.T) {
+	dir := initRepoWithBranch(t, "feature/PRJ-99-my-feature")
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "feat: add something\n")
+
+	policy := &config.CommitMessagePolicy{
+		AppendTicketFooter: true,
+		TicketPattern:      `[invalid(`,
+	}
+	if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	content, _ := os.ReadFile(msgFile)
+	// Invalid pattern falls back to default [A-Z]+-[0-9]+, which matches PRJ-99
+	if !strings.Contains(string(content), "PRJ-99") {
+		t.Errorf("expected fallback to default ticket regex, got: %q", string(content))
+	}
+}
+
+// ---------- allowed_types ----------
+
+func TestApplyCommitMessagePolicy_AllowedTypes_Pass(t *testing.T) {
+	dir := initRepoWithBranch(t, "main")
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "wip: work in progress\n")
+
+	policy := &config.CommitMessagePolicy{
+		ConventionalCommits: true,
+		AllowedTypes:        []string{"feat", "fix", "wip"},
+		SkippedBranches:     []string{},
+	}
+	if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
+		t.Errorf("unexpected error for allowed custom type: %v", err)
+	}
+}
+
+func TestApplyCommitMessagePolicy_AllowedTypes_Fail(t *testing.T) {
+	dir := initRepoWithBranch(t, "main")
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "chore: update deps\n")
+
+	// chore is NOT in the custom allowed list
+	policy := &config.CommitMessagePolicy{
+		ConventionalCommits: true,
+		AllowedTypes:        []string{"feat", "fix", "wip"},
+	}
+	err := applyCommitMessagePolicy(dir, policy, msgFile)
+	if err == nil {
+		t.Error("expected error: 'chore' not in allowed_types")
+	}
+}
+
+func TestApplyCommitMessagePolicy_AllowedTypes_EmptyUsesDefaults(t *testing.T) {
+	dir := initRepoWithBranch(t, "main")
+	msgFile := filepath.Join(dir, "COMMIT_EDITMSG")
+	writeFile(t, msgFile, "chore: update deps\n")
+
+	// Empty AllowedTypes → default set includes chore
+	policy := &config.CommitMessagePolicy{
+		ConventionalCommits: true,
+		AllowedTypes:        []string{},
+	}
+	if err := applyCommitMessagePolicy(dir, policy, msgFile); err != nil {
+		t.Errorf("unexpected error with empty AllowedTypes (should use defaults): %v", err)
+	}
+}

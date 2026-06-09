@@ -23,8 +23,6 @@ type Backend interface {
 	// ExecWithContext runs cmd respecting ctx cancellation, writing to w when non-nil.
 	// env contains additional environment variables merged on top of the parent process env.
 	ExecWithContext(ctx context.Context, dir string, cmd []string, env map[string]string, w io.Writer) error
-	// BinaryExists checks whether the named binary is available in this backend.
-	BinaryExists(dir, binary string) bool
 }
 
 // HostBackend runs commands directly on the host.
@@ -60,20 +58,6 @@ func (b *HostBackend) ExecWithContext(ctx context.Context, dir string, cmd []str
 	return c.Run()
 }
 
-func (b *HostBackend) BinaryExists(dir, binary string) bool {
-	local := []string{
-		filepath.Join(dir, "vendor", "bin", binary),
-		filepath.Join(dir, "node_modules", ".bin", binary),
-	}
-	for _, p := range local {
-		if _, err := os.Stat(p); err == nil {
-			return true
-		}
-	}
-	_, err := exec.LookPath(binary)
-	return err == nil
-}
-
 // DdevBackend routes commands through `docker exec` into the DDEV web container.
 // This is faster than `ddev exec` because it skips the DDEV CLI overhead.
 type DdevBackend struct{}
@@ -97,8 +81,8 @@ func (b *DdevBackend) ExecWithContext(ctx context.Context, dir string, cmd []str
 	if err != nil {
 		return fmt.Errorf("ddev backend: %w", err)
 	}
-	// docker exec -i -w /var/www/html [-e KEY=VAL ...] <container> <cmd...>
-	dockerArgs := []string{"docker", "exec", "-i", "-w", "/var/www/html"}
+	containerDir := ddevContainerDir(dir)
+	dockerArgs := []string{"docker", "exec", "-i", "-w", containerDir}
 	for k, v := range env {
 		dockerArgs = append(dockerArgs, "-e", k+"="+v)
 	}
@@ -115,20 +99,6 @@ func (b *DdevBackend) ExecWithContext(ctx context.Context, dir string, cmd []str
 	}
 	c.Stdin = os.Stdin
 	return c.Run()
-}
-
-func (b *DdevBackend) BinaryExists(dir, binary string) bool {
-	local := []string{
-		filepath.Join(dir, "vendor", "bin", binary),
-		filepath.Join(dir, "node_modules", ".bin", binary),
-	}
-	for _, p := range local {
-		if _, err := os.Stat(p); err == nil {
-			return true
-		}
-	}
-	system := map[string]bool{"php": true, "composer": true, "node": true, "npm": true}
-	return system[binary]
 }
 
 func (b *DockerBackend) Name() string { return b.container }
@@ -159,10 +129,6 @@ func (b *DockerBackend) ExecWithContext(ctx context.Context, dir string, cmd []s
 	}
 	c.Stdin = os.Stdin
 	return c.Run()
-}
-
-func (b *DockerBackend) BinaryExists(dir, binary string) bool {
-	return true
 }
 
 // ResolveBackend returns the appropriate backend for a tool in the given repo root.
@@ -232,6 +198,37 @@ func ddevContainerName(repoRoot string) (string, error) {
 		return "", err
 	}
 	return "ddev-" + name + "-web", nil
+}
+
+// ddevProjectRoot walks up from startDir until it finds a directory containing
+// a .ddev/ subdirectory, returning the DDEV project root.
+func ddevProjectRoot(startDir string) (string, error) {
+	dir := filepath.Clean(startDir)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".ddev")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("no .ddev directory found above %s", startDir)
+		}
+		dir = parent
+	}
+}
+
+// ddevContainerDir translates a host absolute path to the equivalent path
+// inside the DDEV web container, which mounts the project root at /var/www/html.
+// If the project root cannot be determined, /var/www/html is returned.
+func ddevContainerDir(hostDir string) string {
+	root, err := ddevProjectRoot(hostDir)
+	if err != nil {
+		return "/var/www/html"
+	}
+	rel, err := filepath.Rel(root, hostDir)
+	if err != nil || rel == "." {
+		return "/var/www/html"
+	}
+	return "/var/www/html/" + filepath.ToSlash(rel)
 }
 
 // ResolveCommandForBackend resolves a vendor/node_modules binary path relative

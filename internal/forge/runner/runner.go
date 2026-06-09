@@ -21,8 +21,30 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 )
 
-var ticketRegex = regexp.MustCompile(`([A-Z]+-[0-9]+)`)
-var conventionalRegex = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: .+`)
+var defaultTicketRegex = regexp.MustCompile(`([A-Z]+-[0-9]+)`)
+
+var defaultConventionalTypes = []string{
+	"feat", "fix", "docs", "style", "refactor",
+	"perf", "test", "build", "ci", "chore", "revert",
+}
+
+func ticketRegexFor(policy *config.CommitMessagePolicy) *regexp.Regexp {
+	if policy.TicketPattern != "" {
+		if re, err := regexp.Compile(policy.TicketPattern); err == nil {
+			return re
+		}
+	}
+	return defaultTicketRegex
+}
+
+func conventionalRegexFor(policy *config.CommitMessagePolicy) *regexp.Regexp {
+	types := policy.AllowedTypes
+	if len(types) == 0 {
+		types = defaultConventionalTypes
+	}
+	pattern := `^(` + strings.Join(types, "|") + `)(\([^)]+\))?!?: .+`
+	return regexp.MustCompile(pattern)
+}
 
 // RunOptions controls optional behaviour for a hook run.
 type RunOptions struct {
@@ -386,7 +408,7 @@ func applyCommitMessagePolicy(repoRoot string, policy *config.CommitMessagePolic
 	}
 
 	subject := strings.TrimSpace(lines[0])
-	if policy.ConventionalCommits && !conventionalRegex.MatchString(subject) {
+	if policy.ConventionalCommits && !conventionalRegexFor(policy).MatchString(subject) {
 		return fmt.Errorf("commit subject does not follow conventional commits: %q", subject)
 	}
 
@@ -395,7 +417,7 @@ func applyCommitMessagePolicy(repoRoot string, policy *config.CommitMessagePolic
 	}
 
 	ticket := ""
-	if m := ticketRegex.FindStringSubmatch(branch); len(m) > 1 {
+	if m := ticketRegexFor(policy).FindStringSubmatch(branch); len(m) > 1 {
 		ticket = m[1]
 	}
 
@@ -440,7 +462,7 @@ func applyPrepareCommitMsgPolicy(repoRoot string, policy *config.CommitMessagePo
 	}
 
 	ticket := ""
-	if m := ticketRegex.FindStringSubmatch(branch); len(m) > 1 {
+	if m := ticketRegexFor(policy).FindStringSubmatch(branch); len(m) > 1 {
 		ticket = m[1]
 	}
 	if ticket == "" {

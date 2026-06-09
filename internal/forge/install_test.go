@@ -127,3 +127,29 @@ func TestInstall_PrePushShimHasEnvInjection(t *testing.T) {
 		t.Errorf("pre-push shim missing FORGE_PUSH_URL injection:\n%s", shim)
 	}
 }
+
+func TestBuildHookScript_MisePathRespectsMiseDataDir(t *testing.T) {
+	script := buildHookScript("forge", "pre-commit")
+	if !strings.Contains(script, "MISE_DATA_DIR") {
+		t.Errorf("shim should use MISE_DATA_DIR, got:\n%s", script)
+	}
+	// Must not fall back to a hardcoded path that ignores MISE_DATA_DIR
+	if strings.Contains(script, `$HOME/.local/share/mise/shims"`) {
+		t.Errorf("shim should not hardcode the mise shims path; use MISE_DATA_DIR instead")
+	}
+}
+
+func TestBuildHookScript_MisePathRespectsXDGDataHome(t *testing.T) {
+	script := buildHookScript("forge", "pre-commit")
+	if !strings.Contains(script, "XDG_DATA_HOME") {
+		t.Errorf("shim should respect XDG_DATA_HOME, got:\n%s", script)
+	}
+}
+
+func TestBuildHookScript_MiseFallsBackToDefault(t *testing.T) {
+	// The default fallback must still be $HOME/.local/share.
+	script := buildHookScript("forge", "pre-commit")
+	if !strings.Contains(script, `$HOME/.local/share`) {
+		t.Errorf("shim should retain $HOME/.local/share as final fallback, got:\n%s", script)
+	}
+}

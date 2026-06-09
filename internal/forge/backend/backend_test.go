@@ -137,45 +137,6 @@ func TestHostBackend_ExecWithContext_Cancelled(t *testing.T) {
 	}
 }
 
-func TestHostBackend_BinaryExists_SystemBinary(t *testing.T) {
-	b := &HostBackend{}
-	// "echo" should be on PATH on any Unix host
-	if !b.BinaryExists(t.TempDir(), "echo") {
-		t.Error("expected 'echo' to be found via LookPath")
-	}
-}
-
-func TestHostBackend_BinaryExists_LocalVendorBin(t *testing.T) {
-	dir := t.TempDir()
-	vendorBin := filepath.Join(dir, "vendor", "bin")
-	_ = os.MkdirAll(vendorBin, 0o755)
-	_ = os.WriteFile(filepath.Join(vendorBin, "phpstan"), []byte("#!/bin/sh"), 0o755)
-
-	b := &HostBackend{}
-	if !b.BinaryExists(dir, "phpstan") {
-		t.Error("expected local vendor/bin/phpstan to be found")
-	}
-}
-
-func TestHostBackend_BinaryExists_LocalNodeBin(t *testing.T) {
-	dir := t.TempDir()
-	nodeBin := filepath.Join(dir, "node_modules", ".bin")
-	_ = os.MkdirAll(nodeBin, 0o755)
-	_ = os.WriteFile(filepath.Join(nodeBin, "eslint"), []byte("#!/bin/sh"), 0o755)
-
-	b := &HostBackend{}
-	if !b.BinaryExists(dir, "eslint") {
-		t.Error("expected local node_modules/.bin/eslint to be found")
-	}
-}
-
-func TestHostBackend_BinaryExists_Missing(t *testing.T) {
-	b := &HostBackend{}
-	if b.BinaryExists(t.TempDir(), "this-binary-does-not-exist-forge-test") {
-		t.Error("expected missing binary to return false")
-	}
-}
-
 // ---------- DdevBackend ----------
 
 func TestDdevBackend_Name(t *testing.T) {
@@ -193,35 +154,6 @@ func TestDdevBackend_ExecWithContext_NoDdevConfig(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "ddev backend") {
 		t.Errorf("expected error to mention 'ddev backend', got: %v", err)
-	}
-}
-
-func TestDdevBackend_BinaryExists_LocalVendorBin(t *testing.T) {
-	dir := t.TempDir()
-	vendorBin := filepath.Join(dir, "vendor", "bin")
-	_ = os.MkdirAll(vendorBin, 0o755)
-	_ = os.WriteFile(filepath.Join(vendorBin, "phpstan"), []byte("#!/bin/sh"), 0o755)
-
-	b := &DdevBackend{}
-	if !b.BinaryExists(dir, "phpstan") {
-		t.Error("expected local vendor/bin/phpstan to be found")
-	}
-}
-
-func TestDdevBackend_BinaryExists_KnownSystemBinary(t *testing.T) {
-	b := &DdevBackend{}
-	for _, bin := range []string{"php", "composer", "node", "npm"} {
-		if !b.BinaryExists(t.TempDir(), bin) {
-			t.Errorf("expected known system binary %q to return true", bin)
-		}
-	}
-}
-
-func TestDdevBackend_BinaryExists_UnknownBinary(t *testing.T) {
-	b := &DdevBackend{}
-	// unknown binary not in vendor/bin and not in the known list
-	if b.BinaryExists(t.TempDir(), "this-binary-does-not-exist-forge-test") {
-		t.Error("expected unknown binary to return false")
 	}
 }
 
@@ -368,5 +300,69 @@ func TestBackendAvailabilityError_Error(t *testing.T) {
 	msg := e.Error()
 	if !strings.Contains(msg, "phpstan") || !strings.Contains(msg, "host") {
 		t.Errorf("unexpected error message: %q", msg)
+	}
+}
+
+// ---------- ddevProjectRoot ----------
+
+func TestDdevProjectRoot_FindsDirectParent(t *testing.T) {
+	dir := makeDdevConfig(t, "my-project")
+	got, err := ddevProjectRoot(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != dir {
+		t.Errorf("got %q, want %q", got, dir)
+	}
+}
+
+func TestDdevProjectRoot_FindsAncestor(t *testing.T) {
+	root := makeDdevConfig(t, "ancestor-project")
+	sub := filepath.Join(root, "packages", "foo")
+	_ = os.MkdirAll(sub, 0o755)
+
+	got, err := ddevProjectRoot(sub)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != root {
+		t.Errorf("got %q, want %q", got, root)
+	}
+}
+
+func TestDdevProjectRoot_ErrorWhenNoDdev(t *testing.T) {
+	dir := t.TempDir()
+	_, err := ddevProjectRoot(dir)
+	if err == nil {
+		t.Error("expected error when no .ddev directory exists")
+	}
+}
+
+// ---------- ddevContainerDir ----------
+
+func TestDdevContainerDir_ProjectRoot(t *testing.T) {
+	dir := makeDdevConfig(t, "my-project")
+	got := ddevContainerDir(dir)
+	if got != "/var/www/html" {
+		t.Errorf("project root should map to /var/www/html, got %q", got)
+	}
+}
+
+func TestDdevContainerDir_SubDirectory(t *testing.T) {
+	root := makeDdevConfig(t, "my-project")
+	sub := filepath.Join(root, "packages", "foo")
+	_ = os.MkdirAll(sub, 0o755)
+
+	got := ddevContainerDir(sub)
+	if got != "/var/www/html/packages/foo" {
+		t.Errorf("got %q, want /var/www/html/packages/foo", got)
+	}
+}
+
+func TestDdevContainerDir_FallbackWhenNoDdev(t *testing.T) {
+	dir := t.TempDir()
+	got := ddevContainerDir(dir)
+	if got != "/var/www/html" {
+		t.Errorf("expected fallback /var/www/html, got %q", got)
 	}
 }
