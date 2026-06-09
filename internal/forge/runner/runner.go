@@ -231,7 +231,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg config.HookConfig, exec
 		cacheEnabled := !noCache && (tool.Cache || exec.Cache)
 		var cacheKey string
 		if cacheEnabled {
-			if k, err := toolCacheKey(tool, filesToRun); err == nil {
+			if k, err := toolCacheKey(root, tool, filesToRun); err == nil {
 				cacheKey = k
 				if isCacheHit(tc, cacheKey) {
 					r := ui.ToolResult{Name: name, Status: "cached"}
@@ -414,7 +414,7 @@ func applyCommitMessagePolicy(repoRoot string, policy *config.CommitMessagePolic
 			if err := os.WriteFile(editFile, []byte(text), 0644); err != nil {
 				return err
 			}
-			fmt.Printf("Appended commit footer: %s\n", footer)
+			fmt.Fprintf(ui.UI, "Appended commit footer: %s\n", footer)
 		}
 	}
 
@@ -681,19 +681,23 @@ func applyToolFilter(toolNames []string, tools map[string]config.ToolConfig, opt
 	filtered := make([]string, 0, len(toolNames))
 	for _, name := range toolNames {
 		tool := tools[name]
-		if skipToolSet[name] {
+		nameLower := strings.ToLower(name)
+		if skipToolSet[nameLower] {
 			continue
 		}
 		if len(skipGroupSet) > 0 && skipGroupSet[strings.ToLower(tool.Group)] {
 			continue
 		}
-		if len(onlyToolSet) > 0 && !onlyToolSet[name] {
+		explicitlyNamed := len(onlyToolSet) > 0 && onlyToolSet[nameLower]
+		if len(onlyToolSet) > 0 && !explicitlyNamed {
 			if !isDependencyOf(name, opts.OnlyTools, tools) {
 				continue
 			}
 		}
 		if len(onlyGroupSet) > 0 && !onlyGroupSet[strings.ToLower(tool.Group)] {
-			continue
+			if !explicitlyNamed {
+				continue
+			}
 		}
 		filtered = append(filtered, name)
 	}

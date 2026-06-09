@@ -378,3 +378,70 @@ func TestSafeStashEnabled_NoRestageTools(t *testing.T) {
 		t.Error("expected safe stash to be off when no tools have restage=true")
 	}
 }
+
+// Fix 4: --skip-tools and --only-tools comparisons are case-insensitive.
+func TestApplyToolFilter_SkipToolsCaseInsensitive(t *testing.T) {
+	tools := map[string]config.ToolConfig{
+		"PHPLint": {Group: "lint"},
+		"phpstan": {Group: "analysis"},
+	}
+	names := []string{"PHPLint", "phpstan"}
+
+	got := applyToolFilter(names, tools, RunOptions{SkipTools: []string{"phplint"}})
+	for _, n := range got {
+		if n == "PHPLint" {
+			t.Error("PHPLint should be skipped by lowercase 'phplint'")
+		}
+	}
+}
+
+func TestApplyToolFilter_OnlyToolsCaseInsensitive(t *testing.T) {
+	tools := map[string]config.ToolConfig{
+		"PHPLint": {Group: "lint"},
+		"phpstan": {Group: "analysis"},
+	}
+	names := []string{"PHPLint", "phpstan"}
+
+	got := applyToolFilter(names, tools, RunOptions{OnlyTools: []string{"PHPLINT"}})
+	if len(got) != 1 || got[0] != "PHPLint" {
+		t.Errorf("expected [PHPLint] from uppercase 'PHPLINT', got %v", got)
+	}
+}
+
+// Fix 5: an explicit --only-tools entry runs even when --only-groups is also set
+// and the tool belongs to a different group.
+func TestApplyToolFilter_OnlyToolsOverridesGroupFilter(t *testing.T) {
+	tools := map[string]config.ToolConfig{
+		"ecs":     {Group: "format"},
+		"phpstan": {Group: "analysis"},
+		"psalm":   {Group: "analysis"},
+	}
+	names := []string{"ecs", "phpstan", "psalm"}
+
+	// ecs is in group "format" but is explicitly named; it should still run.
+	opts := RunOptions{OnlyTools: []string{"ecs"}, OnlyGroups: []string{"analysis"}}
+	got := applyToolFilter(names, tools, opts)
+
+	found := false
+	for _, n := range got {
+		if n == "ecs" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("explicitly named tool 'ecs' should run even though its group 'format' is not in --only-groups; got %v", got)
+	}
+}
+
+// Fix 5: when only --only-groups is set (no --only-tools), group filter works normally.
+func TestApplyToolFilter_OnlyGroupsWithoutOnlyTools(t *testing.T) {
+	tools := map[string]config.ToolConfig{
+		"ecs":     {Group: "format"},
+		"phpstan": {Group: "analysis"},
+	}
+	names := []string{"ecs", "phpstan"}
+	got := applyToolFilter(names, tools, RunOptions{OnlyGroups: []string{"analysis"}})
+	if len(got) != 1 || got[0] != "phpstan" {
+		t.Errorf("expected [phpstan], got %v", got)
+	}
+}

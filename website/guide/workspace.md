@@ -38,6 +38,10 @@ If you commit a file in `apps/api/`, forge uses `apps/api/forge.toml` (if presen
 
 Member `forge.toml` files follow the same schema as the root config. They can define different tools, backends, or policies for that member.
 
+## File path handling
+
+Staged file paths are always represented with forward slashes (`/`) internally, regardless of the operating system. Workspace member patterns in `forge.toml` are normalized the same way, so member matching works correctly on Windows and Unix alike.
+
 ## Disabling workspace mode
 
 Remove the `[workspace]` block or set `members = []`.
