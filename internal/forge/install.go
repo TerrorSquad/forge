@@ -108,13 +108,14 @@ FORGE_PUSH_REMOTE="$1" FORGE_PUSH_URL="$2" \`
 	return fmt.Sprintf(`#!/usr/bin/env sh
 set -eu
 
-# TODO: Handle this more robustly - via forge.toml config or env var - instead of hardcoding the path to the mise shims. This is brittle and only works if mise is installed in the default location.
-
-# Load mise shims if they exist, so that if forge is installed via mise, the shims will correctly forward to the mise-installed version.
-
-if [ -d "$HOME/.local/share/mise/shims" ]; then
-	export PATH="$HOME/.local/share/mise/shims:$PATH"
+# Load mise shims if available so that mise-installed tools (including forge
+# itself) are on PATH. Respects MISE_DATA_DIR and XDG_DATA_HOME, matching
+# mise's own path resolution order.
+_mise_data="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}"
+if [ -d "$_mise_data/shims" ]; then
+	export PATH="$_mise_data/shims:$PATH"
 fi
+unset _mise_data
 
 
 # Prefer system-installed binary; fall back to repo-local binary (dev workflow)
