@@ -403,3 +403,231 @@ func TestMergeGlobalConfig_ToolsMerged(t *testing.T) {
 		t.Error("repo tool should still be present")
 	}
 }
+
+func TestMergeGlobalConfig_ToolNotOverriddenIfRepoHasIt(t *testing.T) {
+	global := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-commit": {
+				Tools: map[string]ToolConfig{
+					"gofmt": {Command: "global-gofmt"},
+				},
+			},
+		},
+	}
+	repo := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-commit": {
+				Tools: map[string]ToolConfig{
+					"gofmt": {Command: "repo-gofmt"},
+				},
+			},
+		},
+	}
+	mergeGlobalConfig(global, repo)
+	if tool := repo.Hooks["pre-commit"].Tools["gofmt"]; tool.Command != "repo-gofmt" {
+		t.Errorf("repo tool should not be overridden, got %q", tool.Command)
+	}
+}
+
+func TestMergeGlobalConfig_SkipsHookNotInRepo(t *testing.T) {
+	global := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-push": {
+				Tools: map[string]ToolConfig{
+					"mytool": {Command: "check"},
+				},
+			},
+		},
+	}
+	repo := &Config{
+		Hooks: map[string]HookConfig{},
+	}
+	mergeGlobalConfig(global, repo)
+	if _, ok := repo.Hooks["pre-push"]; ok {
+		t.Error("global hook absent from repo should not be injected into repo")
+	}
+}
+
+func TestMergeGlobalConfig_ToolOrderMergedWhenRepoHasNone(t *testing.T) {
+	global := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-commit": {
+				toolOrder: []string{"gofmt", "govet"},
+			},
+		},
+	}
+	repo := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-commit": {},
+		},
+	}
+	mergeGlobalConfig(global, repo)
+	hook := repo.Hooks["pre-commit"]
+	if len(hook.toolOrder) != 2 {
+		t.Fatalf("expected toolOrder len 2, got %d: %v", len(hook.toolOrder), hook.toolOrder)
+	}
+	if hook.toolOrder[0] != "gofmt" || hook.toolOrder[1] != "govet" {
+		t.Errorf("unexpected toolOrder: %v", hook.toolOrder)
+	}
+}
+
+func TestMergeGlobalConfig_ToolOrderAppendedFromGlobal(t *testing.T) {
+	global := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-commit": {
+				toolOrder: []string{"govet", "golangci"},
+			},
+		},
+	}
+	repo := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-commit": {
+				toolOrder: []string{"gofmt"},
+			},
+		},
+	}
+	mergeGlobalConfig(global, repo)
+	hook := repo.Hooks["pre-commit"]
+	// repo had "gofmt"; global adds "govet" and "golangci"
+	if len(hook.toolOrder) != 3 {
+		t.Fatalf("expected 3 entries, got %d: %v", len(hook.toolOrder), hook.toolOrder)
+	}
+	if hook.toolOrder[0] != "gofmt" {
+		t.Errorf("repo order should come first, got %v", hook.toolOrder)
+	}
+}
+
+func TestMergeGlobalConfig_ToolOrderNoDuplicates(t *testing.T) {
+	// If the same tool name is in both repo and global order, it should not be duplicated.
+	global := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-commit": {
+				toolOrder: []string{"gofmt", "govet"},
+			},
+		},
+	}
+	repo := &Config{
+		Hooks: map[string]HookConfig{
+			"pre-commit": {
+				toolOrder: []string{"gofmt"},
+			},
+		},
+	}
+	mergeGlobalConfig(global, repo)
+	hook := repo.Hooks["pre-commit"]
+	count := 0
+	for _, name := range hook.toolOrder {
+		if name == "gofmt" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("gofmt should appear exactly once in merged toolOrder, got %d: %v", count, hook.toolOrder)
+	}
+}
+
+func TestMergeGlobalConfig_PolicyMergedWhenRepoHasNone(t *testing.T) {
+	policy := &CommitMessagePolicy{ConventionalCommits: true}
+	global := &Config{
+		Hooks: map[string]HookConfig{
+			"commit-msg": {Policy: policy},
+		},
+	}
+	repo := &Config{
+		Hooks: map[string]HookConfig{
+			"commit-msg": {},
+		},
+	}
+	mergeGlobalConfig(global, repo)
+	hook := repo.Hooks["commit-msg"]
+	if hook.Policy == nil {
+		t.Fatal("expected policy to be merged from global")
+	}
+	if !hook.Policy.ConventionalCommits {
+		t.Error("expected ConventionalCommits=true from global policy")
+	}
+}
+
+func TestMergeGlobalConfig_PolicyNotOverriddenIfRepoHasOne(t *testing.T) {
+	globalPolicy := &CommitMessagePolicy{ConventionalCommits: true}
+	repoPolicy := &CommitMessagePolicy{ConventionalCommits: false, RequireTicket: true}
+	global := &Config{
+		Hooks: map[string]HookConfig{
+			"commit-msg": {Policy: globalPolicy},
+		},
+	}
+	repo := &Config{
+		Hooks: map[string]HookConfig{
+			"commit-msg": {Policy: repoPolicy},
+		},
+	}
+	mergeGlobalConfig(global, repo)
+	hook := repo.Hooks["commit-msg"]
+	if hook.Policy.ConventionalCommits {
+		t.Error("repo policy should not have been overridden by global")
+	}
+	if !hook.Policy.RequireTicket {
+		t.Error("repo policy fields should be preserved")
+	}
+}
+
+func TestMergeGlobalConfig_PolicyIsCopiedNotShared(t *testing.T) {
+	// Verify the merged policy is a copy, not a pointer alias.
+	p := &CommitMessagePolicy{ConventionalCommits: true}
+	global := &Config{
+		Hooks: map[string]HookConfig{
+			"commit-msg": {Policy: p},
+		},
+	}
+	repo := &Config{
+		Hooks: map[string]HookConfig{
+			"commit-msg": {},
+		},
+	}
+	mergeGlobalConfig(global, repo)
+	repo.Hooks["commit-msg"].Policy.ConventionalCommits = false
+	if !p.ConventionalCommits {
+		t.Error("mutating merged policy should not affect global policy (copy expected)")
+	}
+}
+
+// ---------- LoadConfigFromPath ----------
+
+func TestLoadConfigFromPath_Valid(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "my.toml")
+	writeFile(t, p, `
+[hooks.pre-commit]
+enabled = true
+
+[hooks.pre-commit.tools.gofmt]
+command = "gofmt"
+`)
+	cfg, path, err := LoadConfigFromPath(p)
+	if err != nil {
+		t.Fatalf("LoadConfigFromPath: %v", err)
+	}
+	if path != p {
+		t.Errorf("path = %q, want %q", path, p)
+	}
+	if _, ok := cfg.Hooks["pre-commit"]; !ok {
+		t.Error("expected pre-commit hook in loaded config")
+	}
+}
+
+func TestLoadConfigFromPath_Missing(t *testing.T) {
+	_, _, err := LoadConfigFromPath("/tmp/nonexistent-forge-xyz-test.toml")
+	if err == nil {
+		t.Error("expected error for missing file")
+	}
+}
+
+func TestLoadConfigFromPath_InvalidTOML(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "bad.toml")
+	writeFile(t, p, "[[[[invalid toml")
+	_, _, err := LoadConfigFromPath(p)
+	if err == nil {
+		t.Error("expected error for invalid TOML")
+	}
+}
