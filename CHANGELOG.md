@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on the Keep a Changelog principles and is intended to work with automated release tooling.
 
+## [1.2.2](https://github.com/TerrorSquad/forge/compare/v1.2.1...v1.2.2) (2026-06-09)
+
+
+### Bug Fixes
+
+* support ** glob patterns in exclude_patterns via doublestar ([30aaed2](https://github.com/TerrorSquad/forge/commit/30aaed22ba413137a554f23a2dcbb618e3c2d416))
+
 ## [1.2.1](https://github.com/TerrorSquad/forge/compare/v1.2.0...v1.2.1) (2026-06-08)
 
 
