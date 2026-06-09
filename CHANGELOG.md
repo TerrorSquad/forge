@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on the Keep a Changelog principles and is intended to work with automated release tooling.
 
+## [1.2.4](https://github.com/TerrorSquad/forge/compare/v1.2.3...v1.2.4) (2026-06-09)
+
+
+### Bug Fixes
+
+* ddev workdir, dead BinaryExists, configurable ticket/type policy ([4c0f19d](https://github.com/TerrorSquad/forge/commit/4c0f19dedca44cf235750b7dfe77eff8c3882df7))
+* **install:** resolve mise shims path via MISE_DATA_DIR and XDG_DATA_HOME ([b23a143](https://github.com/TerrorSquad/forge/commit/b23a143d0eac47019cefa7d1763b3a8b96b337f4))
+
 ## [1.2.3](https://github.com/TerrorSquad/forge/compare/v1.2.2...v1.2.3) (2026-06-09)
 
 
