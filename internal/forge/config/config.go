@@ -51,6 +51,13 @@ type CommitMessagePolicy struct {
 	PrependTicket       bool     `toml:"prepend_ticket"`
 	SkipOnMerge         bool     `toml:"skip_on_merge"`
 	SkipIfPresent       bool     `toml:"skip_if_present"`
+	// TicketPattern is a regexp matched against the branch name to extract a
+	// ticket ID. Defaults to [A-Z]+-[0-9]+ (Jira/Linear style) when empty.
+	TicketPattern string `toml:"ticket_pattern"`
+	// AllowedTypes restricts Conventional Commits to a custom type list.
+	// Defaults to: feat, fix, docs, style, refactor, perf, test, build, ci,
+	// chore, revert.
+	AllowedTypes []string `toml:"allowed_types"`
 }
 
 type ToolConfig struct {
