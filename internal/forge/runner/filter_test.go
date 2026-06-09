@@ -54,6 +54,20 @@ func TestFilterFiles_Empty(t *testing.T) {
 	}
 }
 
+func TestFilterFiles_ExcludeDoublestarPattern(t *testing.T) {
+	files := []string{
+		"vendor/symfony/console/Command.php",
+		"vendor/symfony/http-kernel/src/Controller/File.php",
+		"src/App.php",
+	}
+	tool := config.ToolConfig{
+		Extensions:      []string{".php"},
+		ExcludePatterns: []string{"vendor/**/*"},
+	}
+	got := filterFiles(files, tool)
+	assertStringSlice(t, got, []string{"src/App.php"})
+}
+
 func TestFilterFiles_CaseInsensitiveExtension(t *testing.T) {
 	files := []string{"Main.GO", "other.ts"}
 	tool := config.ToolConfig{Extensions: []string{".go"}}

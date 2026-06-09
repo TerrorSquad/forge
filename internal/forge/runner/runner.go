@@ -18,6 +18,7 @@ import (
 	"github.com/TerrorSquad/forge/internal/forge/config"
 	"github.com/TerrorSquad/forge/internal/forge/git"
 	"github.com/TerrorSquad/forge/internal/forge/ui"
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 var ticketRegex = regexp.MustCompile(`([A-Z]+-[0-9]+)`)
@@ -561,7 +562,7 @@ func matchPatterns(file string, patterns []string, defaultWhenEmpty bool) bool {
 		return defaultWhenEmpty
 	}
 	for _, p := range patterns {
-		ok, err := filepath.Match(p, file)
+		ok, err := doublestar.Match(p, file)
 		if err == nil && ok {
 			return true
 		}
