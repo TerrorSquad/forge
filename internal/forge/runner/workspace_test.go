@@ -19,7 +19,7 @@ func TestPathHasPrefix_ForwardSlash(t *testing.T) {
 		{"packages/foo/deep/nested/File.php", "packages/foo", true},
 		{"other/file.php", "packages/foo", false},
 		{"packages/foo/file.php", "packages/foo/", true}, // trailing slash in prefix is OK
-		{"anything", "", true},                            // empty prefix always matches
+		{"anything", "", true},                           // empty prefix always matches
 	}
 	for _, c := range cases {
 		got := pathHasPrefix(c.file, c.prefix)
