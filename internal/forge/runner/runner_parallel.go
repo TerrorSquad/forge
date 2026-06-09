@@ -153,6 +153,7 @@ func runHookCfgParallel(root, hookName string, hookCfg config.HookConfig, exec c
 	ui.PrintSummaryCI(allResults, time.Since(hookStart), checkMode)
 
 	if cacheUpdated {
+		evictCache(tc, exec)
 		saveCache(root, tc)
 	}
 
@@ -216,7 +217,7 @@ func runToolWave(root, hookName string, names []string, tools map[string]config.
 
 			cacheEnabled := !noCache && (tool.Cache || exec.Cache)
 			if cacheEnabled && !checkMode {
-				if k, err := toolCacheKey(tool, filesToRun); err == nil {
+				if k, err := toolCacheKey(root, tool, filesToRun); err == nil {
 					pr.cacheKey = k
 					if isCacheHit(tc, k) {
 						pr.result = ui.ToolResult{Name: toolName, Status: "cached"}

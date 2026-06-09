@@ -260,3 +260,163 @@ func TestErrUpdateAvailable_IsDistinct(t *testing.T) {
 		t.Errorf("unexpected error string: %v", ErrUpdateAvailable)
 	}
 }
+
+// ---------- copyFile ----------
+
+func TestCopyFile_CopiesContent(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.txt")
+	dst := filepath.Join(dir, "dst.txt")
+
+	content := []byte("hello copy")
+	if err := os.WriteFile(src, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := copyFile(src, dst); err != nil {
+		t.Fatalf("copyFile: %v", err)
+	}
+
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(content) {
+		t.Errorf("content = %q, want %q", got, content)
+	}
+}
+
+func TestCopyFile_PreservesPermissions(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.bin")
+	dst := filepath.Join(dir, "dst.bin")
+
+	if err := os.WriteFile(src, []byte("bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := copyFile(src, dst); err != nil {
+		t.Fatalf("copyFile: %v", err)
+	}
+
+	info, err := os.Stat(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o755 {
+		t.Errorf("mode = %o, want 0755", info.Mode().Perm())
+	}
+}
+
+func TestCopyFile_ErrorOnMissingSrc(t *testing.T) {
+	dir := t.TempDir()
+	err := copyFile(filepath.Join(dir, "nonexistent"), filepath.Join(dir, "dst"))
+	if err == nil {
+		t.Error("expected error when source does not exist")
+	}
+}
+
+// ---------- atomicReplace ----------
+
+func TestAtomicReplace_ReplacesContent(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "new.bin")
+	dst := filepath.Join(dir, "existing.bin")
+
+	if err := os.WriteFile(dst, []byte("old content"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(src, []byte("new content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := atomicReplace(src, dst); err != nil {
+		t.Fatalf("atomicReplace: %v", err)
+	}
+
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "new content" {
+		t.Errorf("content after replace = %q, want %q", got, "new content")
+	}
+}
+
+func TestAtomicReplace_SetsDestPermissionsOnSrc(t *testing.T) {
+	// atomicReplace copies dst's mode to src before renaming.
+	dir := t.TempDir()
+	src := filepath.Join(dir, "new.bin")
+	dst := filepath.Join(dir, "existing.bin")
+
+	if err := os.WriteFile(dst, []byte("old"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(src, []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := atomicReplace(src, dst); err != nil {
+		t.Fatalf("atomicReplace: %v", err)
+	}
+
+	info, err := os.Stat(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o755 {
+		t.Errorf("mode = %o, want 0755 (inherited from original dst)", info.Mode().Perm())
+	}
+}
+
+func TestAtomicReplace_ErrorIfDstMissing(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.bin")
+	dst := filepath.Join(dir, "nonexistent.bin")
+
+	if err := os.WriteFile(src, []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := atomicReplace(src, dst)
+	if err == nil {
+		t.Error("expected error when dst does not exist")
+	}
+}
+
+// ---------- downloadToTemp ----------
+
+func TestDownloadToTemp_Success(t *testing.T) {
+	content := []byte("fake binary content")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(content)
+	}))
+	t.Cleanup(srv.Close)
+
+	path, err := downloadToTemp(srv.URL)
+	if err != nil {
+		t.Fatalf("downloadToTemp: %v", err)
+	}
+	defer os.Remove(path) //nolint:errcheck
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Errorf("downloaded content = %q, want %q", got, content)
+	}
+}
+
+func TestDownloadToTemp_HTTPError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := downloadToTemp(srv.URL)
+	if err == nil {
+		t.Fatal("expected error for 403 response")
+	}
+}

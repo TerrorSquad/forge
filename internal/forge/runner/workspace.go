@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/TerrorSquad/forge/internal/forge/config"
 	"github.com/TerrorSquad/forge/internal/forge/git"
@@ -84,11 +85,11 @@ func pathHasPrefix(filePath, prefix string) bool {
 	if len(prefix) == 0 {
 		return true
 	}
-	p := prefix
-	if p[len(p)-1] != filepath.Separator {
-		p += string(filepath.Separator)
+	p := filepath.ToSlash(prefix)
+	if p[len(p)-1] != '/' {
+		p += "/"
 	}
-	return len(filePath) >= len(p) && filePath[:len(p)] == p
+	return strings.HasPrefix(filePath, p)
 }
 
 func stagedFilesForMember(repoRoot, member string) ([]string, error) {
@@ -96,10 +97,10 @@ func stagedFilesForMember(repoRoot, member string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	prefix := member + string(filepath.Separator)
+	prefix := filepath.ToSlash(member) + "/"
 	var filtered []string
 	for _, f := range all {
-		if len(f) > len(prefix) && f[:len(prefix)] == prefix {
+		if strings.HasPrefix(f, prefix) {
 			filtered = append(filtered, f[len(prefix):])
 		}
 	}

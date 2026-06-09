@@ -3,6 +3,7 @@ package runner
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/TerrorSquad/forge/internal/forge/config"
 )
@@ -58,8 +59,8 @@ func TestToolCacheKey_Deterministic(t *testing.T) {
 	writeFile(t, f2, "package main\n")
 
 	tool := config.ToolConfig{Command: "gofmt", Args: []string{"-w"}}
-	k1, err1 := toolCacheKey(tool, []string{f1, f2})
-	k2, err2 := toolCacheKey(tool, []string{f2, f1}) // reversed order
+	k1, err1 := toolCacheKey(dir, tool, []string{f1, f2})
+	k2, err2 := toolCacheKey(dir, tool, []string{f2, f1})
 	if err1 != nil || err2 != nil {
 		t.Fatalf("unexpected errors: %v, %v", err1, err2)
 	}
@@ -74,9 +75,9 @@ func TestToolCacheKey_ChangesOnFileChange(t *testing.T) {
 	writeFile(t, f, "package main\n")
 	tool := config.ToolConfig{Command: "gofmt"}
 
-	k1, _ := toolCacheKey(tool, []string{f})
+	k1, _ := toolCacheKey(dir, tool, []string{f})
 	writeFile(t, f, "package main // changed\n")
-	k2, _ := toolCacheKey(tool, []string{f})
+	k2, _ := toolCacheKey(dir, tool, []string{f})
 
 	if k1 == k2 {
 		t.Error("cache key should change when file content changes")
@@ -100,8 +101,63 @@ func TestClearCache(t *testing.T) {
 
 func TestClearCache_NoFile(t *testing.T) {
 	dir := t.TempDir()
-	// Clearing a non-existent cache should not error.
 	if err := ClearCache(dir); err != nil {
 		t.Errorf("ClearCache should not error when file is absent: %v", err)
+	}
+}
+
+// Fix 2: toolCacheKey resolves relative paths via repoRoot, not process CWD.
+func TestToolCacheKey_RelativePathResolvesViaRepoRoot(t *testing.T) {
+	repoRoot := t.TempDir()
+	memberRoot := t.TempDir()
+
+	writeFile(t, filepath.Join(repoRoot, "src/Foo.php"), "<?php echo 1;")
+	writeFile(t, filepath.Join(memberRoot, "src/Foo.php"), "<?php echo 2;")
+
+	tool := config.ToolConfig{Command: "php", Args: []string{"-l"}}
+
+	k1, err := toolCacheKey(repoRoot, tool, []string{"src/Foo.php"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	k2, err := toolCacheKey(memberRoot, tool, []string{"src/Foo.php"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if k1 == k2 {
+		t.Error("same relative path under different roots with different content should produce different cache keys")
+	}
+}
+
+// Fix 1: evictCache TTL removes stale entries.
+func TestEvictCache_TTL(t *testing.T) {
+	tc := toolCache{
+		"stale": {Passed: true, Timestamp: time.Now().Add(-2 * time.Hour)},
+		"fresh": {Passed: true, Timestamp: time.Now()},
+	}
+	evictCache(tc, config.ExecutionConfig{CacheTTL: "1h"})
+
+	if _, ok := tc["stale"]; ok {
+		t.Error("stale entry should have been evicted")
+	}
+	if _, ok := tc["fresh"]; !ok {
+		t.Error("fresh entry should not have been evicted")
+	}
+}
+
+// Fix 1: evictCache enforces CacheMaxSize, keeping newest entries.
+func TestEvictCache_MaxSize(t *testing.T) {
+	tc := toolCache{
+		"a": {Passed: true, Timestamp: time.Now().Add(-3 * time.Minute)},
+		"b": {Passed: true, Timestamp: time.Now().Add(-2 * time.Minute)},
+		"c": {Passed: true, Timestamp: time.Now().Add(-1 * time.Minute)},
+	}
+	evictCache(tc, config.ExecutionConfig{CacheMaxSize: 2})
+
+	if len(tc) != 2 {
+		t.Errorf("expected 2 entries after max-size eviction, got %d", len(tc))
+	}
+	if _, ok := tc["a"]; ok {
+		t.Error("oldest entry 'a' should have been evicted")
 	}
 }

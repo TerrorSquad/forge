@@ -98,7 +98,7 @@ func ClearCache(repoRoot string) error {
 	return nil
 }
 
-func toolCacheKey(tool config.ToolConfig, files []string) (string, error) {
+func toolCacheKey(repoRoot string, tool config.ToolConfig, files []string) (string, error) {
 	cfgBytes, err := json.Marshal(tool)
 	if err != nil {
 		return "", err
@@ -110,7 +110,11 @@ func toolCacheKey(tool config.ToolConfig, files []string) (string, error) {
 	}
 	fhList := make([]fileHash, 0, len(files))
 	for _, f := range files {
-		h, err := hashFile(f)
+		absPath := f
+		if !filepath.IsAbs(f) {
+			absPath = filepath.Join(repoRoot, f)
+		}
+		h, err := hashFile(absPath)
 		if err != nil {
 			h = "deleted"
 		}
