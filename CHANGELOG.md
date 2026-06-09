@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on the Keep a Changelog principles and is intended to work with automated release tooling.
 
+## [1.2.3](https://github.com/TerrorSquad/forge/compare/v1.2.2...v1.2.3) (2026-06-09)
+
+
+### Bug Fixes
+
+* six bug fixes in runner, cache, workspace, and tool filter ([d6f2067](https://github.com/TerrorSquad/forge/commit/d6f2067d615aee2e90dcd5ada4251a2136cf9d58))
+* six bug fixes in runner, cache, workspace, and tool filter ([5ab5850](https://github.com/TerrorSquad/forge/commit/5ab5850a96eebe53a0bdbae0397b9c00ba4792c1))
+
 ## [1.2.2](https://github.com/TerrorSquad/forge/compare/v1.2.1...v1.2.2) (2026-06-09)
 
 
