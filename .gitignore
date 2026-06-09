@@ -12,4 +12,4 @@ demo.mp4
 
 .cache/
 dist/forge
-!/.forge
+.forge
