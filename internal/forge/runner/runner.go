@@ -160,21 +160,6 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 				return nil
 			}
 		}
-
-		if safeStashEnabled(hookCfg) && !opts.AllFiles && !opts.CheckMode {
-			_, stashed, stashErr := git.StashUnstagedChanges(repoRoot)
-			if stashErr != nil {
-				fmt.Fprintf(ui.UI, "%s\n", ui.Yellow("⚠ stash failed: "+stashErr.Error()+" — proceeding without stash"))
-			} else if stashed {
-				fmt.Fprintf(ui.UI, "  %s\n", ui.Dim("⬇  stashing unstaged changes..."))
-				defer func() {
-					fmt.Fprintf(ui.UI, "  %s\n", ui.Dim("⬆  restoring unstaged changes..."))
-					if popErr := git.PopStash(repoRoot); popErr != nil {
-						fmt.Fprintf(ui.UI, "%s\n", ui.Yellow("⚠ "+popErr.Error()))
-					}
-				}()
-			}
-		}
 	}
 
 	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files, opts)
@@ -652,18 +637,6 @@ func loadEnvFiles(repoRoot string) {
 			}
 		}
 	}
-}
-
-func safeStashEnabled(hookCfg config.HookConfig) bool {
-	if hookCfg.SafeStash != nil {
-		return *hookCfg.SafeStash
-	}
-	for _, tool := range hookCfg.Tools {
-		if tool.Restage {
-			return true
-		}
-	}
-	return false
 }
 
 func shouldSkipTool(name string) bool {

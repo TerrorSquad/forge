@@ -8,7 +8,6 @@
 | `SKIP_<TOOL>=1` | Skip a specific tool by its key name (case-insensitive, uppercase) |
 | `HOOKS_ONLY=group1,group2` | Run only tools whose `group` field matches one of the values |
 | `FORGE_CONFIG=path` | Override the config file location |
-| `FORGE_NO_STASH=1` | Disable the pre-commit safety stash of unstaged changes |
 
 ## Examples
 
@@ -24,9 +23,6 @@ HOOKS_ONLY=format git commit -m "style: format"
 
 # Use an alternative config
 FORGE_CONFIG=configs/strict.toml git commit -m "feat: stricter checks"
-
-# Disable safety stash (faster, but hooks see a mix of staged/unstaged)
-FORGE_NO_STASH=1 git commit -m "chore: bulk"
 ```
 
 ## Tool name matching

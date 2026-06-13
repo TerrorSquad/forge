@@ -34,7 +34,6 @@ type UpdateConfig struct {
 type HookConfig struct {
 	Enabled   *bool                 `toml:"enabled"`
 	Parallel  *bool                 `toml:"parallel"`
-	SafeStash *bool                 `toml:"safe_stash"`
 	Tools     map[string]ToolConfig `toml:"tools"`
 	Policy    *CommitMessagePolicy  `toml:"policy"`
 	toolOrder []string

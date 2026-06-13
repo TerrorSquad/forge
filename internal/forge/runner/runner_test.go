@@ -338,47 +338,6 @@ func TestShouldSkipGroup(t *testing.T) {
 	}
 }
 
-// TestSafeStashEnabled_AutoDetect checks that safe_stash is auto-enabled when
-// any tool has restage=true.
-func TestSafeStashEnabled_AutoDetect(t *testing.T) {
-	cfg := config.HookConfig{
-		Tools: map[string]config.ToolConfig{
-			"ecs":     {Restage: true},
-			"phpstan": {Restage: false},
-		},
-	}
-	if !safeStashEnabled(cfg) {
-		t.Error("expected safe stash to be auto-enabled when a tool has restage=true")
-	}
-}
-
-// TestSafeStashEnabled_ExplicitFalse checks that safe_stash=false opts out.
-func TestSafeStashEnabled_ExplicitFalse(t *testing.T) {
-	f := false
-	cfg := config.HookConfig{
-		SafeStash: &f,
-		Tools: map[string]config.ToolConfig{
-			"ecs": {Restage: true},
-		},
-	}
-	if safeStashEnabled(cfg) {
-		t.Error("expected safe stash to be disabled when safe_stash=false")
-	}
-}
-
-// TestSafeStashEnabled_NoRestageTools checks safe_stash is off when no fixers.
-func TestSafeStashEnabled_NoRestageTools(t *testing.T) {
-	cfg := config.HookConfig{
-		Tools: map[string]config.ToolConfig{
-			"phpstan": {Restage: false},
-			"psalm":   {Restage: false},
-		},
-	}
-	if safeStashEnabled(cfg) {
-		t.Error("expected safe stash to be off when no tools have restage=true")
-	}
-}
-
 // Fix 4: --skip-tools and --only-tools comparisons are case-insensitive.
 func TestApplyToolFilter_SkipToolsCaseInsensitive(t *testing.T) {
 	tools := map[string]config.ToolConfig{
