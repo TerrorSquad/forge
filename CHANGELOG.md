@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on the Keep a Changelog principles and is intended to work with automated release tooling.
 
+## [2.0.0](https://github.com/TerrorSquad/forge/compare/v1.2.4...v2.0.0) (2026-06-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* removed the `safe_stash` hook config option and the FORGE_NO_STASH environment variable.
+
+### Code Refactoring
+
+* remove pre-commit safety stash ([0a6445b](https://github.com/TerrorSquad/forge/commit/0a6445b708f568ca07c298806d4cfb004ef759ca))
+
 ## [1.2.4](https://github.com/TerrorSquad/forge/compare/v1.2.3...v1.2.4) (2026-06-09)
 
 
