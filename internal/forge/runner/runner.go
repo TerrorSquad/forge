@@ -128,7 +128,7 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 
 	if hookName == "pre-push" {
 		pushCtx := parsePushContext(os.Stdin)
-		return runHookCfgWithPushContext(repoRoot, hookName, hookCfg, cfg.Execution, pushCtx)
+		return runHookCfgWithPushContext(repoRoot, hookName, hookCfg, cfg.Execution, pushCtx, opts)
 	}
 
 	if hookName == "post-commit" {
@@ -266,7 +266,7 @@ func runHookCfg(root, hookName, editFile string, hookCfg config.HookConfig, exec
 		dur := time.Since(start)
 		ui.ClearRunning()
 
-		if !checkMode && len(tool.StageOutputs) > 0 {
+		if err == nil && !checkMode && len(tool.StageOutputs) > 0 {
 			_ = git.AddFiles(root, tool.StageOutputs)
 		}
 
@@ -583,27 +583,13 @@ func parseAllowedGroups() map[string]struct{} {
 		return nil
 	}
 	res := map[string]struct{}{}
-	s := bufio.NewScanner(strings.NewReader(raw))
-	s.Split(splitComma)
-	for s.Scan() {
-		v := strings.TrimSpace(strings.ToLower(s.Text()))
+	for _, part := range strings.Split(raw, ",") {
+		v := strings.TrimSpace(strings.ToLower(part))
 		if v != "" {
 			res[v] = struct{}{}
 		}
 	}
 	return res
-}
-
-func splitComma(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	for i, b := range data {
-		if b == ',' {
-			return i + 1, data[:i], nil
-		}
-	}
-	if atEOF && len(data) > 0 {
-		return len(data), data, nil
-	}
-	return 0, nil, nil
 }
 
 func isHookSkippedEnv(hook string) bool {
@@ -824,7 +810,7 @@ func parsePushContext(r io.Reader) PushContext {
 	return ctx
 }
 
-func runHookCfgWithPushContext(root, hookName string, hookCfg config.HookConfig, execCfg config.ExecutionConfig, ctx PushContext) error {
+func runHookCfgWithPushContext(root, hookName string, hookCfg config.HookConfig, execCfg config.ExecutionConfig, ctx PushContext, opts RunOptions) error {
 	if ctx.Remote != "" {
 		os.Setenv("FORGE_PUSH_REMOTE", ctx.Remote)
 	}
@@ -837,5 +823,5 @@ func runHookCfgWithPushContext(root, hookName string, hookCfg config.HookConfig,
 			os.Setenv("FORGE_PUSH_BRANCH", strings.TrimPrefix(ref, "refs/heads/"))
 		}
 	}
-	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil, RunOptions{})
+	return runHookCfg(root, hookName, "", hookCfg, execCfg, nil, opts)
 }

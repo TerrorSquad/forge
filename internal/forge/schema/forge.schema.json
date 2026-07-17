@@ -158,10 +158,6 @@
           "description": "Logical group name shown in output (e.g. 'lint', 'format', 'analysis', 'test', 'artifacts'). No functional effect.",
           "examples": ["lint", "format", "analysis", "test", "refactor", "artifacts"]
         },
-        "when": {
-          "type": "string",
-          "description": "Conditional expression controlling when this tool runs."
-        },
         "timeout": {
           "type": "string",
           "description": "Per-tool timeout, e.g. '120s', '2m'. Overrides [execution].tool_timeout.",

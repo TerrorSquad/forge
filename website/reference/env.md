@@ -30,6 +30,12 @@ HOOKS_ONLY=format git commit -m "style: format"
 FORGE_CONFIG=configs/strict.toml git commit -m "feat: stricter checks"
 ```
 
+## Env files
+
+Before running a hook, forge loads `.git-hooks.env` and then `.env` from the repo root (if present). Each `KEY=value` line is applied **only when the variable isn't already set** in the environment, so your shell always wins. Lines starting with `#` are ignored, and surrounding single/double quotes are stripped.
+
+This lets a repo commit shared defaults — e.g. a `.git-hooks.env` with `HOOKS_ONLY=format` or `SKIP_PHPSTAN=1` — without every contributor exporting them by hand.
+
 ## Tool name matching
 
 `SKIP_<TOOL>` matches the **uppercase key** of the tool in `forge.toml`. For example, a tool keyed as `phpcs` is skipped with `SKIP_PHPCS=1`.

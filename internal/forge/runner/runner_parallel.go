@@ -133,7 +133,7 @@ func runHookCfgParallel(root, hookName string, hookCfg config.HookConfig, exec c
 
 		if !checkMode {
 			for _, pr := range waveResults {
-				if len(pr.tool.StageOutputs) > 0 {
+				if pr.err == nil && len(pr.tool.StageOutputs) > 0 {
 					_ = git.AddFiles(root, pr.tool.StageOutputs)
 				}
 			}
