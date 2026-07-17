@@ -165,6 +165,40 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 	return runHookCfg(repoRoot, hookName, editFile, hookCfg, cfg.Execution, files, opts)
 }
 
+// preflightTools verifies that every selected, non-skipped tool has its binary
+// available before the hook runs. Container backends (ddev/docker) are assumed
+// to provide their own binaries, so only host tools are checked. Any missing
+// tool aborts the entire hook — the user must install it, set SKIP_<TOOL>=1,
+// or disable the tool in forge.toml.
+func preflightTools(root string, hookCfg config.HookConfig, exec config.ExecutionConfig, toolNames []string) error {
+	allowedGroups := parseAllowedGroups()
+	var missing []string
+	for _, name := range toolNames {
+		tool := hookCfg.Tools[name]
+		if shouldSkipTool(name) || shouldSkipGroup(tool.Group) {
+			continue
+		}
+		if len(allowedGroups) > 0 && tool.Group != "" {
+			if _, ok := allowedGroups[strings.ToLower(tool.Group)]; !ok {
+				continue
+			}
+		}
+		if strings.TrimSpace(tool.Command) == "" {
+			continue // reported separately as a config error at run time
+		}
+		b := backend.ResolveBackend(root, tool, exec.DefaultBackend)
+		resolvedCmd := backend.ResolveCommandForBackend(root, tool, b)
+		if !backend.ToolBinaryAvailable(root, resolvedCmd, b) {
+			missing = append(missing, fmt.Sprintf("%s (%s)", name, resolvedCmd))
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing tool binaries:\n  - %s\ninstall them, set SKIP_<TOOL>=1 to skip, or disable the tool in forge.toml",
+			strings.Join(missing, "\n  - "))
+	}
+	return nil
+}
+
 func runHookCfg(root, hookName, editFile string, hookCfg config.HookConfig, exec config.ExecutionConfig, files []string, opts RunOptions) error {
 	allFiles := opts.AllFiles
 	noCache := opts.NoCache
@@ -176,6 +210,10 @@ func runHookCfg(root, hookName, editFile string, hookCfg config.HookConfig, exec
 	if len(toolNames) == 0 {
 		fmt.Fprintf(ui.UI, "%s\n", ui.Dim("no tools configured for "+hookName))
 		return nil
+	}
+
+	if err := preflightTools(root, hookCfg, exec, toolNames); err != nil {
+		return err
 	}
 
 	ui.PrintHookHeaderCI(hookName)
@@ -227,13 +265,6 @@ func runHookCfg(root, hookName, editFile string, hookCfg config.HookConfig, exec
 		}
 
 		b := backend.ResolveBackend(root, tool, exec.DefaultBackend)
-		resolvedCmd := backend.ResolveCommandForBackend(root, tool, b)
-		if !backend.ToolBinaryAvailable(root, resolvedCmd, b) {
-			r := ui.ToolResult{Name: name, Status: "skip", Output: "binary not found: " + resolvedCmd}
-			ui.PrintToolResult(r)
-			results = append(results, r)
-			continue
-		}
 
 		cacheEnabled := !noCache && (tool.Cache || exec.Cache)
 		var cacheKey string

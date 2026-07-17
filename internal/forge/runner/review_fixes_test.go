@@ -90,6 +90,45 @@ func stagedSet(t *testing.T, dir string) map[string]bool {
 	return set
 }
 
+// TestPreflightFailsOnMissingTool verifies the hook aborts hard when a
+// configured tool's binary is absent, rather than silently skipping it.
+func TestPreflightFailsOnMissingTool(t *testing.T) {
+	dir := initBareGitRepo(t)
+
+	tool := config.ToolConfig{
+		Command:   "forge-nonexistent-binary-zzz",
+		Type:      "system",
+		PassFiles: boolPtr(false),
+	}
+	cfg := config.HookConfig{Enabled: boolPtr(true), Tools: map[string]config.ToolConfig{"ghosttool": tool}}
+
+	err := runHookCfg(dir, "pre-push", "", cfg, config.ExecutionConfig{}, nil, RunOptions{})
+	if err == nil {
+		t.Fatal("expected hard failure for a missing tool binary")
+	}
+	if !contains(err.Error(), "missing tool") || !contains(err.Error(), "ghosttool") {
+		t.Errorf("error should name the missing tool, got: %v", err)
+	}
+}
+
+// TestPreflightExemptsSkippedTool verifies a missing tool does NOT fail the hook
+// when the user has explicitly skipped it (the documented escape hatch).
+func TestPreflightExemptsSkippedTool(t *testing.T) {
+	dir := initBareGitRepo(t)
+	t.Setenv("SKIP_GHOSTTOOL", "1")
+
+	tool := config.ToolConfig{
+		Command:   "forge-nonexistent-binary-zzz",
+		Type:      "system",
+		PassFiles: boolPtr(false),
+	}
+	cfg := config.HookConfig{Enabled: boolPtr(true), Tools: map[string]config.ToolConfig{"ghosttool": tool}}
+
+	if err := runHookCfg(dir, "pre-push", "", cfg, config.ExecutionConfig{}, nil, RunOptions{}); err != nil {
+		t.Errorf("a skipped missing tool must not fail the hook, got: %v", err)
+	}
+}
+
 // TestParseAllowedGroups covers the HOOKS_ONLY parsing after the strings.Split
 // simplification (trimming, case-folding, empty entries).
 func TestParseAllowedGroups(t *testing.T) {
