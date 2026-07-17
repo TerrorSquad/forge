@@ -233,6 +233,22 @@ func TestResolveCommandForBackend_PHP_LocalVendor(t *testing.T) {
 	}
 }
 
+func TestResolveCommandForBackend_PHP_DdevIgnoresHostVendor(t *testing.T) {
+	// Host has vendor/bin/phpstan, but ddev runs inside the container where
+	// that host path is meaningless — must return the bare command so the
+	// container PATH resolves it.
+	dir := t.TempDir()
+	vendorBin := filepath.Join(dir, "vendor", "bin")
+	_ = os.MkdirAll(vendorBin, 0o755)
+	_ = os.WriteFile(filepath.Join(vendorBin, "phpstan"), []byte("#!/bin/sh"), 0o755)
+
+	tool := config.ToolConfig{Command: "phpstan", Type: "php"}
+	got := ResolveCommandForBackend(dir, tool, &DdevBackend{})
+	if got != "phpstan" {
+		t.Errorf("got %q, want %q", got, "phpstan")
+	}
+}
+
 func TestResolveCommandForBackend_Node_LocalNodeModules(t *testing.T) {
 	dir := t.TempDir()
 	nodeBin := filepath.Join(dir, "node_modules", ".bin")
