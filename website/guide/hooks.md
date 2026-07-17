@@ -1,14 +1,20 @@
 # Hooks
 
-forge supports three git hook entry points. Each maps directly to a standard git hook.
+Each hook maps directly to a standard git hook. `forge install` writes a shim for every supported hook.
 
 ## Supported hooks
 
 | Hook | Trigger |
 |------|---------|
 | `pre-commit` | Before a commit is created; receives staged files |
-| `commit-msg` | After commit message is written; validates / mutates message |
-| `pre-push` | Before a push; can run slower checks (tests, build) |
+| `commit-msg` | After the commit message is written; validates / mutates the message |
+| `prepare-commit-msg` | Before the editor opens; can pre-fill the message (e.g. ticket prefix) |
+| `pre-push` | Before a push; good for slower checks (tests, build) |
+| `post-commit` | After a commit completes; non-blocking |
+| `post-merge` | After a merge (e.g. `git pull`); non-blocking |
+| `post-rewrite` | After history is rewritten (`rebase`, `commit --amend`); non-blocking |
+
+`pre-commit`, `pre-push`, and the `post-*` hooks run configured tools. `commit-msg` and `prepare-commit-msg` additionally apply the [commit-message policy](/guide/commit-policy).
 
 ## Enabling a hook
 
