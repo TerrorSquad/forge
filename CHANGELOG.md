@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on the Keep a Changelog principles and is intended to work with automated release tooling.
 
+## [2.0.1](https://github.com/TerrorSquad/forge/compare/v2.0.0...v2.0.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* resolve bare command for container backends ([1fe3781](https://github.com/TerrorSquad/forge/commit/1fe378164e5cbc8107c401cb3371814e045d5350))
+* resolve bare command for container backends ([99773d8](https://github.com/TerrorSquad/forge/commit/99773d8c630f276b91ed6592d87371902c90dc4a))
+
 ## [2.0.0](https://github.com/TerrorSquad/forge/compare/v1.2.4...v2.0.0) (2026-06-13)
 
 
