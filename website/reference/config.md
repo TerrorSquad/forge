@@ -8,7 +8,7 @@ Repository-wide execution defaults.
 
 ```toml
 [execution]
-default_backend = "host"   # "host" | "ddev" | custom Docker container name
+default_backend = "ddev"   # "host" | "ddev" | custom Docker container name
 parallel        = false    # run tools within a hook concurrently
 cache           = false    # skip tools whose inputs are unchanged
 tool_timeout    = "60s"    # default per-tool timeout (Go duration)
@@ -16,7 +16,7 @@ tool_timeout    = "60s"    # default per-tool timeout (Go duration)
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `default_backend` | string | `"host"` | Default execution backend for all tools |
+| `default_backend` | string | *(auto)* | Default backend for all tools. When omitted, forge auto-detects DDEV (uses it if the container is running, else host). Set `"host"` to force host and **disable** auto-detection |
 | `parallel` | bool | `false` | Run a hook's tools concurrently (respecting `depends_on`) |
 | `cache` | bool | `false` | Enable the run cache — unchanged inputs skip the tool |
 | `tool_timeout` | string | — | Default timeout for every tool, as a Go duration (`"30s"`, `"2m"`) |

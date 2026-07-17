@@ -15,12 +15,12 @@ Environment variables (e.g., `PATH` expansions) are forwarded explicitly via `-e
 
 ## Auto-detection
 
-forge automatically uses the DDEV backend when:
+When `default_backend` is **not set**, forge automatically uses the DDEV backend when:
 
 - `.ddev/config.yaml` exists in the repo root, **and**
 - the container is running.
 
-If the container is not running, forge falls back to the host backend and emits a warning.
+If the container is not running, forge falls back to the host backend and emits a warning. Setting `default_backend = "host"` disables auto-detection entirely.
 
 ## Configuration
 

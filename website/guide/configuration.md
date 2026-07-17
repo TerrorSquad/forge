@@ -47,7 +47,7 @@ Tool sections are executed in the order they are declared in `forge.toml`. There
 
 ```toml
 [execution]
-default_backend = "ddev"   # "host" (default), "ddev", or a Docker container name
+default_backend = "ddev"   # omit to auto-detect DDEV; or "host" / a container name
 parallel        = true     # run each hook's tools concurrently
 cache           = true     # skip tools whose inputs haven't changed
 tool_timeout    = "60s"    # default timeout per tool
