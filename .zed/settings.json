@@ -1,0 +1,11 @@
+
+{
+  "lsp": {
+    "gopls": {
+      "binary": {
+        "path": "mise",
+        "arguments": ["exec", "--", "gopls"]
+      }
+    }
+  }
+}
