@@ -72,7 +72,6 @@ type ToolConfig struct {
 	Restage           bool              `toml:"restage"`
 	OnFailure         string            `toml:"on_failure"`
 	Group             string            `toml:"group"`
-	When              string            `toml:"when"`
 	Timeout           string            `toml:"timeout"`
 	Cache             bool              `toml:"cache"`
 	CheckArgs         []string          `toml:"check_args"`
