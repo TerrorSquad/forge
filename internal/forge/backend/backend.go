@@ -235,6 +235,13 @@ func ddevContainerDir(hostDir string) string {
 // to repo root depending on the tool type and active backend.
 func ResolveCommandForBackend(repoRoot string, tool config.ToolConfig, backend Backend) string {
 	cmd := tool.Command
+	// Container backends resolve binaries via the container's own PATH
+	// (e.g. DDEV puts /var/www/html/vendor/bin on PATH). Resolving a *host*
+	// vendor path here would produce a path that doesn't exist in the container.
+	switch backend.(type) {
+	case *DdevBackend, *DockerBackend:
+		return cmd
+	}
 	switch tool.Type {
 	case "php":
 		local := filepath.Join(repoRoot, "vendor", "bin", cmd)
