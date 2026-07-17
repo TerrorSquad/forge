@@ -22,6 +22,8 @@ Toolchain is pinned in `mise.toml` (go 1.23.8, node 24, pnpm 11). `node`/`pnpm` 
 
 ## Architecture
 
+See [docs/architecture.md](docs/architecture.md) for the request-pipeline diagram and package map.
+
 Entry: `cmd/forge/main.go` → `forge.Run(args)` in `internal/forge/app.go`, a flat switch that dispatches every subcommand (`init install uninstall doctor completion cache list ci validate run migrate update`). New subcommand = new case here.
 
 Packages under `internal/forge/`:
