@@ -47,15 +47,26 @@ Tool sections are executed in the order they are declared in `forge.toml`. There
 
 ```toml
 [execution]
-default_backend = "ddev"   # "host" (default) or "ddev"
+default_backend = "ddev"   # "host" (default), "ddev", or a Docker container name
+parallel        = true     # run each hook's tools concurrently
+cache           = true     # skip tools whose inputs haven't changed
+tool_timeout    = "60s"    # default timeout per tool
 ```
+
+See the [full reference](/reference/config#execution) for caching and timeout options.
 
 ## Config file path
 
+forge loads the first repo config it finds:
+
 | Priority | Source |
 |----------|--------|
-| 1 | `FORGE_CONFIG` env var |
+| 1 | `FORGE_CONFIG` env var (path relative to repo root, or absolute) |
 | 2 | `forge.toml` in repo root |
+
+## Global user config
+
+A user-level config at `~/.config/forge/config.toml` (override with `FORGE_GLOBAL_CONFIG`, respects `XDG_CONFIG_HOME`) is merged **underneath** the repo config — the repo's values always win. Use it for personal defaults like `[execution] default_backend` or a shared commit-message policy across all your repos.
 
 ## See also
 

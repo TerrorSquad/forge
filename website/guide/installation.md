@@ -10,7 +10,7 @@ brew install forge-git
 ## curl installer
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/TerrorSquad/forge/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/TerrorSquad/forge/main/install.sh | sh
 ```
 
 The script downloads the latest release binary for your OS/arch and installs it to `/usr/local/bin` (or `~/.local/bin` if `/usr/local/bin` is not writable).
@@ -36,7 +36,7 @@ forge version
 ```
 
 ```
-forge v1.0.0 (abc1234, 2024-01-01)
+forge v2.0.0 (commit: abc1234, built: 2024-01-01)
 ```
 
 > **Note:** The Homebrew formula is named `forge-git` to avoid conflicts with an existing `forge` package. Install with `brew install forge-git` but the binary is named `forge`.

@@ -4,14 +4,41 @@ Full schema reference for `forge.toml`.
 
 ## `[execution]`
 
+Repository-wide execution defaults.
+
 ```toml
 [execution]
 default_backend = "host"   # "host" | "ddev" | custom Docker container name
+parallel        = false    # run tools within a hook concurrently
+cache           = false    # skip tools whose inputs are unchanged
+tool_timeout    = "60s"    # default per-tool timeout (Go duration)
 ```
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `default_backend` | string | `"host"` | Default execution backend for all tools |
+| `parallel` | bool | `false` | Run a hook's tools concurrently (respecting `depends_on`) |
+| `cache` | bool | `false` | Enable the run cache — unchanged inputs skip the tool |
+| `tool_timeout` | string | — | Default timeout for every tool, as a Go duration (`"30s"`, `"2m"`) |
+| `cache_ttl` | string | — | Max age of a cache entry before eviction (Go duration; empty = never) |
+| `cache_max_size` | int | `0` | Max cache entries kept; oldest evicted first (`0` = unlimited) |
+
+---
+
+## `[update]`
+
+Controls the `forge update` self-updater.
+
+```toml
+[update]
+pin_version = "v2.0.0"   # warn when the running binary differs
+channel     = "stable"   # "stable" (default) or "rc"
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `pin_version` | string | — | Print a non-blocking warning when the running binary differs from this version |
+| `channel` | string | `"stable"` | Release channel to update from: `"stable"` or `"rc"` |
 
 ---
 
@@ -32,14 +59,16 @@ members = ["apps/*", "packages/*"]
 
 ```toml
 [hooks.pre-commit]
-enabled = true
+enabled  = true
+parallel = false   # optional: override [execution].parallel for this hook
 ```
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `enabled` | bool | `false` | Whether this hook is active |
+| `parallel` | bool | *(inherits `[execution]`)* | Run this hook's tools concurrently |
 
-Supported hook names: `pre-commit`, `commit-msg`, `pre-push`.
+Supported hook names: `pre-commit`, `commit-msg`, `prepare-commit-msg`, `pre-push`, `post-commit`, `post-merge`, `post-rewrite`.
 
 ---
 
@@ -74,9 +103,17 @@ group            = ""
 | `run_per_file` | bool | `false` | Invoke the tool once per matching file |
 | `restage` | bool | `false` | Re-stage modified files after tool runs |
 | `on_failure` | string | `""` | Set to `"stop"` to abort remaining tools on error |
-| `group` | string | `""` | Used with `HOOKS_ONLY` to run a subset of tools |
+| `group` | string | `""` | Used with `HOOKS_ONLY` / `SKIP_GROUP_*` to run a subset of tools |
+| `depends_on` | `[]string` | `[]` | Tool names that must run before this one (ordering under `parallel`) |
+| `timeout` | string | *(inherits `[execution]`)* | Per-tool timeout as a Go duration (`"30s"`, `"2m"`) |
+| `cache` | bool | `false` | Enable the run cache for this tool (or set `[execution] cache`) |
+| `env` | table | `{}` | Extra environment variables for the tool process |
+| `stage_outputs` | `[]string` | `[]` | Paths to `git add` after the tool runs (for generated files) |
+| `show_output` | bool | `false` | Always print the tool's output, even on success |
+| `check_args` | `[]string` | *(uses `args`)* | Args to use instead of `args` in `--check` / `forge ci` mode |
+| `check_fail_if_output` | bool | `false` | In check mode, treat any output as a failure |
 
-> Tool sections are executed in the order they appear in `forge.toml`. `forge validate` rejects unknown or unsupported fields.
+> Tool sections are executed in the order they appear in `forge.toml` (or by `depends_on` when `parallel = true`). `forge validate` rejects unknown or unsupported fields.
 
 ### Glob patterns
 
@@ -93,7 +130,7 @@ include_patterns = ["src/**/*.php"]
 
 ### Tool name case sensitivity
 
-Tool names in `forge.toml` are matched case-insensitively by `--only-tools`, `--skip-tools`, `SKIP_<NAME>=1`, and related flags. The name as defined in `forge.toml` is used in output; the comparison is always case-folded.
+Tool names in `forge.toml` are matched case-insensitively by `--tool`, `--skip-tool`, `SKIP_<NAME>=1`, and related flags. The name as defined in `forge.toml` is used in output; the comparison is always case-folded.
 
 ---
 

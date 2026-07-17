@@ -55,7 +55,7 @@ export default defineConfig({
         items: [
           { text: 'Configuration', link: '/guide/configuration' },
           { text: 'Hooks', link: '/guide/hooks' },
-          { text: 'Backends (DDEV)', link: '/guide/backends' },
+          { text: 'Backends (DDEV / Docker)', link: '/guide/backends' },
           { text: 'Workspace / Monorepo', link: '/guide/workspace' },
           { text: 'Commit-message Policy', link: '/guide/commit-policy' },
         ],

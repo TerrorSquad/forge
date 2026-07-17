@@ -49,9 +49,9 @@ forge init --preset node
 
 Includes:
 
-- `prettier --write` on `.ts/.js/.vue/.json/.css/.scss` with `restage = true`
-- `eslint --fix` on `.ts/.js/.vue` with `restage = true`
-- Conventional Commits policy
+- `prettier --write --ignore-unknown` on `.js/.ts/.json/.md/.yml/.yaml` with `restage = true`
+- `eslint --fix` on `.js/.jsx/.ts/.tsx/.vue` with `restage = true`
+- Conventional Commits policy with `append_ticket_footer = true`
 
 ## php-node
 

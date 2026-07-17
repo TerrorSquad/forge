@@ -1,6 +1,6 @@
-# Backends (DDEV)
+# Backends (DDEV / Docker)
 
-forge can execute tools either on the host machine or inside a DDEV container.
+forge can execute tools on the host machine, inside a DDEV container, or inside any named Docker container.
 
 ## How it works
 
