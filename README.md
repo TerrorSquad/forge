@@ -1,20 +1,24 @@
 # forge
 
-A policy-driven git hook runner — fast, portable, no Node.js required.
+**The git hook runner for containerized dev.** Run your linters and formatters *inside* DDEV or Docker — automatically, no wrapper scripts. A single Go binary, no Node.js required.
 
 ## Why forge?
 
-Most hook runners (Husky, lint-staged) require Node.js and `package.json`. forge is a single Go binary that works in any project — PHP, Go, Python, or mixed monorepos.
+If your tools live inside a container — `phpstan`, `ecs`, `php-cs-fixer` in a DDEV or Docker environment — every other hook runner makes you write wrapper scripts to shell into the container. forge routes tools to the container for you: set `backend = "ddev"` (or a container name), and forge auto-detects the running environment and executes the tool where it actually lives.
+
+It's also a solid general-purpose runner: one binary, no `package.json`, works in PHP, Go, Python, or mixed monorepos.
 
 | Feature | forge | Husky | lint-staged | lefthook |
 |---------|---------|-------|-------------|----------|
-| Single binary | ✅ | ❌ (needs Node) | ❌ (needs Node) | ✅ |
+| **Runs hooks in DDEV / Docker** | ✅ | ❌ | ❌ | ❌ |
+| **Commit-msg policy built in** | ✅ | ❌ | ❌ | ❌ |
+| Single binary (no Node) | ✅ | ❌ (needs Node) | ❌ (needs Node) | ✅ |
 | TOML config | ✅ | ❌ | ❌ | ✅ (YAML) |
-| DDEV backend | ✅ | ❌ | ❌ | ❌ |
 | Monorepo workspace mode | ✅ | ❌ | ✅ | ✅ |
-| Commit-msg policy | ✅ | ❌ | ❌ | ❌ |
 | Staged-file filtering | ✅ | ❌ | ✅ | ✅ |
 | Migration from Husky | ✅ | — | — | ❌ |
+
+The top two rows are what no other runner does — that's the reason forge exists. If you don't need container-aware hooks, lefthook is a fine choice too; forge earns its place when your toolchain lives in a container or you want commit-message policy without wiring up commitlint.
 
 ---
 
