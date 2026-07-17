@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/TerrorSquad/forge/internal/forge/config"
 )
@@ -164,12 +165,25 @@ func isDdevRunning(repoRoot string) bool {
 	return isDockerContainerRunning(container)
 }
 
+// containerRunningCache memoizes `docker inspect` results for the lifetime of
+// the process. A hook run is a fresh forge process, so the cache lives exactly
+// one run and cannot go stale mid-run — but it avoids re-inspecting the same
+// container once per tool during preflight and again during execution.
+var (
+	containerRunningCache = map[string]bool{}
+	containerRunningMu    sync.Mutex
+)
+
 func isDockerContainerRunning(container string) bool {
-	out, err := exec.Command("docker", "inspect", "--format", "{{.State.Running}}", container).Output()
-	if err != nil {
-		return false
+	containerRunningMu.Lock()
+	defer containerRunningMu.Unlock()
+	if v, ok := containerRunningCache[container]; ok {
+		return v
 	}
-	return strings.TrimSpace(string(out)) == "true"
+	out, err := exec.Command("docker", "inspect", "--format", "{{.State.Running}}", container).Output()
+	running := err == nil && strings.TrimSpace(string(out)) == "true"
+	containerRunningCache[container] = running
+	return running
 }
 
 // ddevProjectName reads the DDEV project name from .ddev/config.yaml.

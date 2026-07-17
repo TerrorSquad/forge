@@ -89,6 +89,10 @@ func runHookCfgParallel(root, hookName string, hookCfg config.HookConfig, exec c
 		return nil
 	}
 
+	if err := preflightTools(root, hookCfg, exec, toolNames); err != nil {
+		return err
+	}
+
 	ui.PrintHookHeaderCI(hookName)
 
 	allowedGroups := parseAllowedGroups()
@@ -208,12 +212,6 @@ func runToolWave(root, hookName string, names []string, tools map[string]config.
 			}
 
 			b := backend.ResolveBackend(root, tool, exec.DefaultBackend)
-			resolvedCmd := backend.ResolveCommandForBackend(root, tool, b)
-			if !backend.ToolBinaryAvailable(root, resolvedCmd, b) {
-				pr.result = ui.ToolResult{Name: toolName, Status: "skip"}
-				results[idx] = pr
-				return
-			}
 
 			cacheEnabled := !noCache && (tool.Cache || exec.Cache)
 			if cacheEnabled && !checkMode {
