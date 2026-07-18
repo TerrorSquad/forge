@@ -22,8 +22,8 @@ flowchart TD
     ws -->|yes| member["run hook per member<br/>(member forge.toml)"]
     ws -->|no| files["gather files<br/>(staged, or all-tracked for --all-files)"]
 
-    files --> pre{"all enabled tool<br/>binaries present?"}
-    pre -->|no| prefail["fail hook<br/>(install / SKIP_* / disable)"]
+    files --> pre{"all enabled tools runnable?<br/>host binary on PATH /<br/>container running"}
+    pre -->|no| prefail["fail hook<br/>(install / start / SKIP_* / disable)"]
     pre -->|yes| mode{"parallel mode?"}
     mode -->|no| seq["runHookCfg<br/>(sequential)"]
     mode -->|yes| par["runHookCfgParallel<br/>(waves by depends_on)"]
@@ -57,6 +57,6 @@ flowchart TD
 
 - **Tool order** follows declaration order in `forge.toml`. Go maps don't preserve order, so `config.parseHookToolOrder` regex-scans the raw TOML and feeds `OrderedToolNames()` — never rely on map iteration for ordering.
 - **Backend resolution precedence**: per-tool `backend` → `[execution].default_backend` → DDEV auto-detect (if the container is running) → host.
-- **Preflight before execution**: every enabled (non-skipped) tool's binary must resolve before any tool runs; a missing host binary aborts the whole hook. Container backends are assumed to provide their own binaries.
+- **Preflight before execution**: every enabled (non-skipped) tool must be runnable before any tool runs — host binaries must resolve on `PATH`, and container (ddev/docker) tools must have a running container (forge never starts one). Any failure aborts the whole hook. Container-running checks are memoized per run.
 - **Mutations happen only on success**: `restage` and `stage_outputs` run after a tool passes (never in `--check` mode); the run cache is only written for passing tools.
 - **Config precedence**: `FORGE_CONFIG` → repo `forge.toml`, with the global user config (`~/.config/forge/config.toml`) merged underneath — repo values always win.

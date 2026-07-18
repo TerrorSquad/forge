@@ -106,8 +106,8 @@ func TestPreflightFailsOnMissingTool(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected hard failure for a missing tool binary")
 	}
-	if !contains(err.Error(), "missing tool") || !contains(err.Error(), "ghosttool") {
-		t.Errorf("error should name the missing tool, got: %v", err)
+	if !contains(err.Error(), "ghosttool") || !contains(err.Error(), "binary not found") {
+		t.Errorf("error should name the missing tool and reason, got: %v", err)
 	}
 }
 
