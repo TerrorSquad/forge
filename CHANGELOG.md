@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on the Keep a Changelog principles and is intended to work with automated release tooling.
 
+## [2.1.0](https://github.com/TerrorSquad/forge/compare/v2.0.1...v2.1.0) (2026-07-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* a hook that references an uninstalled tool now fails instead of skipping it. Set SKIP_<TOOL>=1 or remove the tool from forge.toml to restore the previous pass-through behavior.
+
+### Features
+
+* detect down containers in preflight (+ pin release to 2.1.0) ([69e505f](https://github.com/TerrorSquad/forge/commit/69e505f211dee19f9c9af2df7be279307dbbf19b))
+* detect down containers in preflight with a clear error ([b78861a](https://github.com/TerrorSquad/forge/commit/b78861a29dac44c1b214158169e836fdd36a2b3b))
+* fail the hook when a configured tool binary is missing ([2d44d80](https://github.com/TerrorSquad/forge/commit/2d44d8022b153195ba72e41aee62ef8023a652c9))
+
+
+### Bug Fixes
+
+* honor run options on pre-push and only stage outputs on success ([1e351ca](https://github.com/TerrorSquad/forge/commit/1e351caea8e17b422995381f777c2ee27e69ba7d))
+* remove `when` from config schema to match decoder ([36a6277](https://github.com/TerrorSquad/forge/commit/36a6277b03b0338d2228ca486e1ada8a638e5753))
+* runner correctness bugs, cleanup, tests, and architecture docs ([8bed5cf](https://github.com/TerrorSquad/forge/commit/8bed5cfee20ad90655de5359e9f1be0758ff7786))
+
+
+### Performance Improvements
+
+* memoize container-running checks within a run ([b18b901](https://github.com/TerrorSquad/forge/commit/b18b901fa019601f7dc58952a3f7747fc92bd54e))
+
 ## [2.0.1](https://github.com/TerrorSquad/forge/compare/v2.0.0...v2.0.1) (2026-07-17)
 
 
