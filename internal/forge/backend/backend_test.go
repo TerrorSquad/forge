@@ -292,6 +292,23 @@ func TestPreflightTool_DockerContainerDown(t *testing.T) {
 	}
 }
 
+func TestPreflightTool_DdevContainerDown(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".ddev"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".ddev", "config.yaml"), []byte("name: myproj\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := PreflightTool(dir, "phpstan", &DdevBackend{})
+	if err == nil {
+		t.Fatal("expected error when the ddev container is not running")
+	}
+	if !strings.Contains(err.Error(), "ddev container") || !strings.Contains(err.Error(), "ddev start") {
+		t.Errorf("error should mention the ddev container and how to start it, got: %v", err)
+	}
+}
+
 func TestPreflightTool_HostBinaryMissing(t *testing.T) {
 	err := PreflightTool(t.TempDir(), "forge-test-no-such-binary-zzz", &HostBackend{})
 	if err == nil || !strings.Contains(err.Error(), "binary not found") {
