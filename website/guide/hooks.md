@@ -111,21 +111,26 @@ HOOKS_ONLY=format git commit -m "..."
 
 ## Missing tools fail the hook
 
-Before running anything, forge checks that every enabled tool's binary is available. If any is missing, the whole hook aborts **before** a single tool runs — so a mistyped command or an uninstalled linter can never silently pass as "all checks green".
+Before running anything, forge checks that every enabled tool can actually run. If any can't, the whole hook aborts **before** a single tool runs — so a mistyped command or an uninstalled linter can never silently pass as "all checks green".
 
 ```
-run failed: missing tool binaries:
-  - eslint (node_modules/.bin/eslint)
-install them, set SKIP_<TOOL>=1 to skip, or disable the tool in forge.toml
+run failed: cannot run hook, some tools are unavailable:
+  - eslint — binary not found: node_modules/.bin/eslint
+install/start them, set SKIP_<TOOL>=1 to skip, or disable the tool in forge.toml
 ```
 
 You then have three ways forward:
 
-- **Install** the tool.
+- **Install** the tool (or start its container).
 - **Skip it for one run**: `SKIP_ESLINT=1 git commit …`.
 - **Disable it**: comment out or remove the tool's block in `forge.toml`.
 
-Tools you've already skipped (`SKIP_*`, `--skip-tool`, a non-matching `HOOKS_ONLY` group) are exempt from the check. Tools running through a DDEV/Docker backend are assumed present in the container — only host binaries are verified. Run `forge doctor` to see availability without triggering a commit.
+What's checked:
+
+- **Host tools** — the binary must resolve on `PATH` (or as a `vendor/bin` / `node_modules` path).
+- **DDEV / Docker tools** — the container must be **running**. forge does **not** start it for you (a commit shouldn't spin up infrastructure); it fails fast with `container "…" is not running` so you can `ddev start` and retry.
+
+Tools you've already skipped (`SKIP_*`, `--skip-tool`, a non-matching `HOOKS_ONLY` group) are exempt. Run `forge doctor` to see availability without triggering a commit.
 
 ## See also
 

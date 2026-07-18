@@ -172,7 +172,7 @@ func RunHookWithOptions(hookName string, editFile string, opts RunOptions) error
 // or disable the tool in forge.toml.
 func preflightTools(root string, hookCfg config.HookConfig, exec config.ExecutionConfig, toolNames []string) error {
 	allowedGroups := parseAllowedGroups()
-	var missing []string
+	var problems []string
 	for _, name := range toolNames {
 		tool := hookCfg.Tools[name]
 		if shouldSkipTool(name) || shouldSkipGroup(tool.Group) {
@@ -188,13 +188,13 @@ func preflightTools(root string, hookCfg config.HookConfig, exec config.Executio
 		}
 		b := backend.ResolveBackend(root, tool, exec.DefaultBackend)
 		resolvedCmd := backend.ResolveCommandForBackend(root, tool, b)
-		if !backend.ToolBinaryAvailable(root, resolvedCmd, b) {
-			missing = append(missing, fmt.Sprintf("%s (%s)", name, resolvedCmd))
+		if err := backend.PreflightTool(root, resolvedCmd, b); err != nil {
+			problems = append(problems, fmt.Sprintf("%s — %s", name, err))
 		}
 	}
-	if len(missing) > 0 {
-		return fmt.Errorf("missing tool binaries:\n  - %s\ninstall them, set SKIP_<TOOL>=1 to skip, or disable the tool in forge.toml",
-			strings.Join(missing, "\n  - "))
+	if len(problems) > 0 {
+		return fmt.Errorf("cannot run hook, some tools are unavailable:\n  - %s\ninstall/start them, set SKIP_<TOOL>=1 to skip, or disable the tool in forge.toml",
+			strings.Join(problems, "\n  - "))
 	}
 	return nil
 }

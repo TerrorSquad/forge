@@ -281,6 +281,33 @@ func (e *BackendAvailabilityError) Error() string {
 	return fmt.Sprintf("tool %q not available via backend %q", e.Tool, e.Backend)
 }
 
+// PreflightTool reports why a tool cannot run under its backend, or nil if it
+// can. For container backends it checks that the container is running (it does
+// NOT start it — a hook must not spin up infrastructure); for the host it
+// checks that the binary resolves. Container-running checks are memoized, so
+// this is cheap even when many tools share a container.
+func PreflightTool(repoRoot, resolvedCmd string, b Backend) error {
+	switch bk := b.(type) {
+	case *DdevBackend:
+		name, err := ddevContainerName(repoRoot)
+		if err != nil {
+			return fmt.Errorf("ddev backend unavailable: %w", err)
+		}
+		if !isDockerContainerRunning(name) {
+			return fmt.Errorf("ddev container %q is not running — start it with `ddev start`", name)
+		}
+	case *DockerBackend:
+		if !isDockerContainerRunning(bk.container) {
+			return fmt.Errorf("container %q is not running", bk.container)
+		}
+	default:
+		if !ToolBinaryAvailable(repoRoot, resolvedCmd, b) {
+			return fmt.Errorf("binary not found: %s", resolvedCmd)
+		}
+	}
+	return nil
+}
+
 // ToolBinaryAvailable reports whether the resolved command path is accessible.
 func ToolBinaryAvailable(repoRoot, resolvedCmd string, backend Backend) bool {
 	if _, isDdev := backend.(*DdevBackend); isDdev {

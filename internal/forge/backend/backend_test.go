@@ -278,6 +278,33 @@ func TestResolveCommandForBackend_SystemType_ReturnsCommandAsIs(t *testing.T) {
 	}
 }
 
+// ---------- PreflightTool ----------
+
+func TestPreflightTool_DockerContainerDown(t *testing.T) {
+	// A container name that cannot be running (also covers docker-not-installed).
+	b := &DockerBackend{container: "forge-test-no-such-container-zzz"}
+	err := PreflightTool(t.TempDir(), "phpstan", b)
+	if err == nil {
+		t.Fatal("expected error when the docker container is not running")
+	}
+	if !strings.Contains(err.Error(), "not running") {
+		t.Errorf("error should explain the container is down, got: %v", err)
+	}
+}
+
+func TestPreflightTool_HostBinaryMissing(t *testing.T) {
+	err := PreflightTool(t.TempDir(), "forge-test-no-such-binary-zzz", &HostBackend{})
+	if err == nil || !strings.Contains(err.Error(), "binary not found") {
+		t.Errorf("expected 'binary not found' error, got: %v", err)
+	}
+}
+
+func TestPreflightTool_HostBinaryPresent(t *testing.T) {
+	if err := PreflightTool(t.TempDir(), "echo", &HostBackend{}); err != nil {
+		t.Errorf("expected nil for a present host binary, got: %v", err)
+	}
+}
+
 // ---------- ToolBinaryAvailable ----------
 
 func TestToolBinaryAvailable_DdevBackend_AlwaysTrue(t *testing.T) {
