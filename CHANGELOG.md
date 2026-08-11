@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on the Keep a Changelog principles and is intended to work with automated release tooling.
 
+## [2.1.1](https://github.com/TerrorSquad/forge/compare/v2.1.0...v2.1.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* publish the brew formula as `forge` instead of `forge-git` ([3de33fb](https://github.com/TerrorSquad/forge/commit/3de33fbc8baeb6278821bbcca998c0668d94fc5d))
+
 ## [2.1.0](https://github.com/TerrorSquad/forge/compare/v2.0.1...v2.1.0) (2026-07-18)
 
 
