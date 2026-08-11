@@ -1,5 +1,10 @@
 # forge
 
+[![CI](https://github.com/TerrorSquad/forge/actions/workflows/ci.yml/badge.svg)](https://github.com/TerrorSquad/forge/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/TerrorSquad/forge?sort=semver)](https://github.com/TerrorSquad/forge/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/TerrorSquad/forge.svg)](https://pkg.go.dev/github.com/TerrorSquad/forge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **The git hook runner for containerized dev.** Run your linters and formatters *inside* DDEV or Docker — automatically, no wrapper scripts. A single Go binary, no Node.js required.
 
 ![forge running gofmt and govet as pre-commit hooks](docs/screenshots/pre-commit.png)
@@ -25,6 +30,15 @@ The top two rows are what no other runner does — that's the reason forge exist
 ---
 
 ## Installation
+
+### Homebrew (macOS / Linux)
+
+```sh
+brew install terrorsquad/tap/forge
+```
+
+(`terrorsquad/tap/forge-git` is the same binary under the formula's old
+name, kept so existing installs keep upgrading. New installs want `forge`.)
 
 ### curl installer (Linux / macOS)
 
@@ -271,7 +285,20 @@ append_ticket_footer = true
 require_ticket = false
 ```
 
-## Notes
+## Design notes
 
-This is a practical v1 prototype aimed at proving the install/run UX and config model.
-It intentionally keeps execution simple (host commands, sequential runs, no plugin system yet).
+Execution is deliberately simple: tools run sequentially, configured by data
+rather than by a plugin API. Nothing here needs a scripting host, which is what
+keeps forge a single binary you can drop onto a CI runner.
+
+## Contributing
+
+Issues and PRs welcome. For anything larger than a bug fix, please
+[open an issue](https://github.com/TerrorSquad/forge/issues) first so the
+approach can be agreed before you write it. Commits follow
+[Conventional Commits](https://www.conventionalcommits.org/) — forge enforces
+this on itself.
+
+## License
+
+[MIT](LICENSE) © Goran Ninković

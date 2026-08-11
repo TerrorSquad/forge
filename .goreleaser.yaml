@@ -74,7 +74,10 @@ release:
   name_template: "{{.ProjectName}} v{{.Version}}"
 
 brews:
-  - name: forge-git
+  # Publishes Formula/forge.rb. This used to publish forge-git, which left the
+  # obvious `brew install terrorsquad/tap/forge` pointing at a hand-written
+  # formula nobody updated — it served 1.0.9 for the whole 2.x line.
+  - name: forge
     repository:
       owner: TerrorSquad
       name: homebrew-tap

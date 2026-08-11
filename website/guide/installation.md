@@ -3,9 +3,12 @@
 ## Homebrew (macOS / Linux)
 
 ```sh
-brew tap TerrorSquad/tap
-brew install forge-git
+brew install terrorsquad/tap/forge
 ```
+
+Use the fully-qualified name. Homebrew core has an unrelated `forge`
+(ArrayFire visualization), so a bare `brew install forge` installs that one
+instead.
 
 ## curl installer
 
@@ -36,10 +39,12 @@ forge version
 ```
 
 ```
-forge v2.0.0 (commit: abc1234, built: 2024-01-01)
+forge 2.1.0 (commit: 65a24d9, built: 2026-07-18T00:09:45Z)
 ```
 
-> **Note:** The Homebrew formula is named `forge-git` to avoid conflicts with an existing `forge` package. Install with `brew install forge-git` but the binary is named `forge`.
+> **Note:** `terrorsquad/tap/forge-git` is the same binary under the formula's
+> previous name, kept so existing installs keep upgrading. New installs should
+> use `terrorsquad/tap/forge`.
 
 ## Next steps
 
