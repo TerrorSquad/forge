@@ -2,6 +2,8 @@
 
 **The git hook runner for containerized dev.** Run your linters and formatters *inside* DDEV or Docker — automatically, no wrapper scripts. A single Go binary, no Node.js required.
 
+![forge running gofmt and govet as pre-commit hooks](docs/screenshots/pre-commit.png)
+
 ## Why forge?
 
 If your tools live inside a container — `phpstan`, `ecs`, `php-cs-fixer` in a DDEV or Docker environment — every other hook runner makes you write wrapper scripts to shell into the container. forge routes tools to the container for you: set `backend = "ddev"` (or a container name), and forge auto-detects the running environment and executes the tool where it actually lives.
