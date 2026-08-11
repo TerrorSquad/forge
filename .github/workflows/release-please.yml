@@ -33,14 +33,27 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      actions: write # to dispatch release.yml
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Uses the built-in GITHUB_TOKEN rather than a PAT, so there is no key to
+      # expire (the previous PAT did, silently, and releases stopped for months).
+      # The catch: a tag pushed with GITHUB_TOKEN does not trigger other
+      # workflows, so the "Cut the release" step below dispatches release.yml
+      # explicitly instead of relying on the tag-push event.
       - name: Create or update release PR
         uses: googleapis/release-please-action@v4
         id: release
         with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          token: ${{ github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Cut the release
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"

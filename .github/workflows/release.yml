@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - "v*"
+  # release-please dispatches this against the new tag, because a tag it pushes
+  # with GITHUB_TOKEN does not raise a tag-push event. Also lets a failed build
+  # be re-run without cutting a new tag.
+  workflow_dispatch:
 
 permissions:
   contents: write
