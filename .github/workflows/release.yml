@@ -12,6 +12,13 @@ on:
 permissions:
   contents: write
 
+# A hand-pushed tag raises the push event *and* can be dispatched, which would
+# otherwise race two goreleaser runs at the same release and fail the loser on
+# duplicate asset uploads. Queue them per ref instead.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: GoReleaser
@@ -25,19 +32,41 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Second run for the same tag (push + dispatch): the first already
+      # published, so stop rather than fail on duplicate asset uploads.
+      - name: Skip if this release is already published
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if [ "$TAG" = "$GITHUB_REF" ]; then
+            echo "Not a tag ref — nothing to guard."
+            echo "done=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+                 --json assets --jq '.assets | length' 2>/dev/null | grep -qv '^0$'; then
+            echo "::notice::$TAG already has published assets; skipping."
+            echo "done=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "done=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Extract Go version from mise.toml
+        if: steps.guard.outputs.done != 'true'
         id: go-version
         run: |
           VERSION=$(grep '^go = ' mise.toml | cut -d'"' -f2)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Set up Go
+        if: steps.guard.outputs.done != 'true'
         uses: actions/setup-go@v6
         with:
           go-version: ${{ steps.go-version.outputs.version }}
           cache: true
 
       - name: Run GoReleaser
+        if: steps.guard.outputs.done != 'true'
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
