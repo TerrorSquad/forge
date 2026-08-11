@@ -78,6 +78,10 @@ brews:
   # obvious `brew install terrorsquad/tap/forge` pointing at a hand-written
   # formula nobody updated — it served 1.0.9 for the whole 2.x line.
   - name: forge
+    # Stable releases only. A prerelease tag (v2.1.2-rc.1) would otherwise
+    # point the stable formula at assets that get deleted when the RC is
+    # cleaned up, breaking `brew install` for everyone.
+    skip_upload: auto
     repository:
       owner: TerrorSquad
       name: homebrew-tap
